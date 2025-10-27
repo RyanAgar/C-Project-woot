@@ -228,7 +228,7 @@ void query(int id){
 
 void update(int id){
     int i = find_index_by_id(id);
-    if(i<0){ printf("CMS: Not found.\n"); return; }
+    if(i<0){ printf("CMS: The record with ID %d does not exist.\n"); return; }
 
     Student before = arr[i], after = before;
     char buf[256];
@@ -255,7 +255,7 @@ void update(int id){
 
 void delete(int id){
     int i = find_index_by_id(id);
-    if(i<0){ printf("CMS: Not found.\n"); return; }
+    if(i<0){ printf("CMS: The record with ID %d does not exist.\n"); return; }
 
     char confirm[8];
     printf("Confirm delete (Y/N)? ");
@@ -431,13 +431,21 @@ int main(void) {
             } else {
             printf("Usage: QUERY <ID>\n");
             }
-
-
         } else if (strcasecmp(cmd, "UPDATE") == 0) {
-            if (n >= 2) update(atoi(arg1));
+            if (n >= 2) {
+            int id = atoi(arg1);
+            query(id);
+            } else {
+            printf("Usage: UPDATE <ID>\n");
+            }
 
         } else if (strcasecmp(cmd, "DELETE") == 0) {
-            if (n >= 2) delete(atoi(arg1));
+            if (n >= 2) {
+            int id = atoi(arg1);
+            query(id);
+            } else {
+            printf("Usage: DELETE <ID>\n");
+            }
 
         } else if (strcasecmp(cmd, "SAVE") == 0) {
             if (n >= 2) save(arg1);
@@ -448,7 +456,7 @@ int main(void) {
 
         } else if (strcasecmp(cmd, "HELP") == 0) {
             printf("Commands:\n"
-                   "OPEN f\n"
+                   "OPEN <file>\n"
                    "SHOW ALL\n"
                    "SHOW ALL SORT BY ID|MARK ASC|DESC\n"
                    "SHOW SUMMARY\n"
@@ -456,7 +464,7 @@ int main(void) {
                    "QUERY <ID>\n"
                    "UPDATE <ID>\n"
                    "DELETE <ID>\n"
-                   "SAVE f\n"
+                   "SAVE <file>\n"
                    "UNDO\n"
                    "EXIT\n");
 
