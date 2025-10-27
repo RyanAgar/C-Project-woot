@@ -268,22 +268,41 @@ void save(const char *filename){
     audit_log("SAVE %s", filename);
 }
 
-void summary(){
-    if(arr_size==0){ printf("Empty.\n"); return; }
-
-    int total = arr_size;
-    float sum=0;
-    float maxm = arr[0].mark, minm = arr[0].mark;
-    int idx_max=0, idx_min=0;
-
-    for(size_t i=0;i<arr_size;i++){
-        sum += arr[i].mark;
-        if(arr[i].mark > maxm){ maxm = arr[i].mark; idx_max=i; }
-        if(arr[i].mark < minm){ minm = arr[i].mark; idx_min=i; }
+void summary() {
+    if (arr_size == 0) {
+        printf("No students available.\n");
+        return;
     }
 
-    printf("Total: %d\nAverage: %.2f\nHighest: %.1f (%s)\nLowest: %.1f (%s)\n",
-           total, sum/total, maxm, arr[idx_max].name, minm, arr[idx_min].name);
+    int total = arr_size;
+    double sum = 0.0;
+    double highest = arr[0].mark;
+    double lowest = arr[0].mark;
+    size_t hi_index = 0;
+    size_t lo_index = 0;
+
+    for (size_t i = 0; i < arr_size; i++) {
+        double m = arr[i].mark;
+        sum += m;
+
+        if (m > highest) {
+            highest = m;
+            hi_index = i;
+        }
+        if (m < lowest) {
+            lowest = m;
+            lo_index = i;
+        }
+    }
+
+    double average = sum / total;
+
+    printf("===== Student Summary =====\n");
+    printf("Total students : %d\n", total);
+    printf("Average mark   : %.2f\n", average);
+    printf("Highest mark   : %.1f (%s)\n", highest, arr[hi_index].name);
+    printf("Lowest mark    : %.1f (%s)\n", lowest, arr[lo_index].name);
+    printf("===========================\n");
 }
 
 void undo(){
@@ -315,64 +334,88 @@ void undo(){
 /* ---------------------------------------------------- */
 /* Command Loop                                         */
 /* ---------------------------------------------------- */
-int main(){
-    char line[256], cmd[64];
+
+int main(void) {
+    char line[256], cmd[64], arg1[64], arg2[64], arg3[64];
 
     printf("P9_3 CMS Ready. Type HELP.\n");
 
-    while(1){
+    while (1) {
         printf("P9_3> ");
-        if(!fgets(line,sizeof(line),stdin)) break;
-        if(sscanf(line, "%63s", cmd) != 1) continue;
+        if (!fgets(line, sizeof(line), stdin)) break;
 
-        if(strcasecmp(cmd,"OPEN")==0){
-            char f[128];
-            if(sscanf(line,"%*s %127s",f)==1) open_db(f);
+        // strip newline
+        line[strcspn(line, "\n")] = 0;
+
+        // reset args
+        cmd[0] = arg1[0] = arg2[0] = arg3[0] = '\0';
+
+        // tokenize up to 4 words
+        int n = sscanf(line, "%63s %63s %63s %63s", cmd, arg1, arg2, arg3);
+        if (n < 1) continue;
+
+        if (strcasecmp(cmd, "OPEN") == 0) {
+            if (n >= 2) open_db(arg1);
             else printf("Usage: OPEN filename\n");
 
-        } else if(strcasecmp(cmd,"SHOW")==0){
-            if(strstr(line,"SORT")){
-                char field[16], order[16];
-                if(sscanf(line,"%*s %*s %*s %*s %15s %15s",field,order)>=1){
-                    for(char *p=field;*p;p++) *p=toupper(*p);
-                    for(char *p=order;*p;p++) *p=toupper(*p);
-                    sort_and_show(field, (order[0]?order:"ASC"));
+        } else if (strcasecmp(cmd, "SHOW") == 0) {
+            if (strcasecmp(arg1, "ALL") == 0) {
+                if (strcasecmp(arg2, "SORT") == 0 && strcasecmp(arg3, "BY") == 0) {
+                    char field[16], order[16];
+                    if (sscanf(line, "%*s %*s %*s %*s %15s %15s", field, order) >= 1) {
+                        for (char *p = field; *p; p++) *p = toupper(*p);
+                        for (char *p = order; *p; p++) *p = toupper(*p);
+                        sort_and_show(field, (order[0] ? order : "ASC"));
+                    }
+                } else {
+                    show_all();
                 }
-            } else show_all();
+            } else if (strcasecmp(arg1, "SUMMARY") == 0) {
+                summary();
+            } else {
+                printf("Usage: SHOW ALL | SHOW SUMMARY | SHOW ALL SORT BY ...\n");
+            }
 
-        } else if(strcasecmp(cmd,"INSERT")==0){
+        } else if (strcasecmp(cmd, "INSERT") == 0) {
             Student s;
             char buf[256];
-            printf("ID: "); fgets(buf,256,stdin); s.id=atoi(buf);
-            printf("Name: "); fgets(buf,256,stdin); strtok(buf,"\n"); strncpy(s.name,buf,MAX_STR-1);
-            printf("Programme: "); fgets(buf,256,stdin); strtok(buf,"\n"); strncpy(s.programme,buf,MAX_STR-1);
-            printf("Mark: "); fgets(buf,256,stdin); s.mark=atof(buf);
+            printf("ID: "); fgets(buf, sizeof(buf), stdin); s.id = atoi(buf);
+            printf("Name: "); fgets(buf, sizeof(buf), stdin); strtok(buf, "\n"); strncpy(s.name, buf, MAX_STR-1);
+            printf("Programme: "); fgets(buf, sizeof(buf), stdin); strtok(buf, "\n"); strncpy(s.programme, buf, MAX_STR-1);
+            printf("Mark: "); fgets(buf, sizeof(buf), stdin); s.mark = atof(buf);
             insert_record(s);
 
-        } else if(strcasecmp(cmd,"QUERY")==0){
-            int id; if(sscanf(line,"%*s %d",&id)==1) query(id);
+        } else if (strcasecmp(cmd, "QUERY") == 0) {
+            if (n >= 2) query(atoi(arg1));
 
-        } else if(strcasecmp(cmd,"UPDATE")==0){
-            int id; if(sscanf(line,"%*s %d",&id)==1) update(id);
+        } else if (strcasecmp(cmd, "UPDATE") == 0) {
+            if (n >= 2) update(atoi(arg1));
 
-        } else if(strcasecmp(cmd,"DELETE")==0){
-            int id; if(sscanf(line,"%*s %d",&id)==1) delete(id);
+        } else if (strcasecmp(cmd, "DELETE") == 0) {
+            if (n >= 2) delete(atoi(arg1));
 
-        } else if(strcasecmp(cmd,"SAVE")==0){
-            char f[128];
-            if(sscanf(line,"%*s %127s",f)==1) save(f);
+        } else if (strcasecmp(cmd, "SAVE") == 0) {
+            if (n >= 2) save(arg1);
             else printf("Usage: SAVE filename\n");
 
-        } else if(strcasecmp(cmd,"SHOWSUMMARY")==0 || strcasecmp(line,"SHOW SUMMARY\n")==0){
-            summary();
-
-        } else if(strcasecmp(cmd,"UNDO")==0){
+        } else if (strcasecmp(cmd, "UNDO") == 0) {
             undo();
 
-        } else if(strcasecmp(cmd,"HELP")==0){
-            printf("Commands:\nOPEN f\nSHOW ALL\nSHOW ALL SORT BY ID|MARK ASC|DESC\nINSERT\nQUERY ID\nUPDATE ID\nDELETE ID\nSAVE f\nSHOW SUMMARY\nUNDO\nEXIT\n");
+        } else if (strcasecmp(cmd, "HELP") == 0) {
+            printf("Commands:\n"
+                   "OPEN f\n"
+                   "SHOW ALL\n"
+                   "SHOW ALL SORT BY ID|MARK ASC|DESC\n"
+                   "SHOW SUMMARY\n"
+                   "INSERT\n"
+                   "QUERY ID\n"
+                   "UPDATE ID\n"
+                   "DELETE ID\n"
+                   "SAVE f\n"
+                   "UNDO\n"
+                   "EXIT\n");
 
-        } else if(strcasecmp(cmd,"EXIT")==0){
+        } else if (strcasecmp(cmd, "EXIT") == 0) {
             break;
 
         } else {
@@ -383,3 +426,4 @@ int main(){
     free(arr);
     return 0;
 }
+
