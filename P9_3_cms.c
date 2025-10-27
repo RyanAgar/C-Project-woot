@@ -1,7 +1,8 @@
 /*
-  P9_3_CMS.c
-  Group P9_3 - INF1002 Project
-  Features: OPEN, SHOW ALL, SORT, INSERT, QUERY, UPDATE, DELETE, SAVE, SUMMARY, UNDO + Audit Log
+  INF1002 C Project
+  Group: P9_3 
+  Core Features: OPEN, SHOW ALL, SORT, INSERT, QUERY, UPDATE, DELETE, SAVE, SUMMARY
+  Unique Features: UNDO + Audit Log
   Log File: P9_3-CMS.log
 */
 
