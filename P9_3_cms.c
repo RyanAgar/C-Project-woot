@@ -16,6 +16,8 @@
 #define INIT_CAP 16
 #define LOGFILE "P9_3-CMS.log"
 
+int query_exists(int id);
+
 typedef struct {
     int id;
     char name[MAX_STR];
@@ -39,6 +41,16 @@ UndoRecord last_op = {OP_NONE};
 /* ---------------------------------------------------- */
 /* Utility Functions                                    */
 /* ---------------------------------------------------- */
+
+int query_exists(int id) {  //Student ID Check
+    for (size_t i = 0; i < arr_size; i++) {
+        if (arr[i].id == id) {
+            return 1; // found
+        }
+    }
+    return 0; // not found
+}
+
 
 void audit_log(const char *fmt, ...) {
     FILE *f = fopen(LOGFILE, "a");
@@ -198,7 +210,7 @@ void insert_record(Student s){
     }
     ensure_cap();
     arr[arr_size++] = s;
-    printf("CMS: Record inserted.\n");
+    printf("CMS: Record inserted successfully!\n");
     audit_log("INSERT %d %s %s %.1f", s.id, s.name, s.programme, s.mark);
     last_op.op = OP_INSERT;
     last_op.after = s;
@@ -206,7 +218,11 @@ void insert_record(Student s){
 
 void query(int id){
     int i = find_index_by_id(id);
-    if(i < 0){ printf("CMS: Not found.\n"); return; }
+    if (i < 0) {
+        printf("CMS: The record with ID %d does not exist.\n", id);
+        return;
+    }
+
     printf("%d\t%s\t%s\t%.1f\n", arr[i].id, arr[i].name, arr[i].programme, arr[i].mark);
 }
 
@@ -379,14 +395,43 @@ int main(void) {
         } else if (strcasecmp(cmd, "INSERT") == 0) {
             Student s;
             char buf[256];
-            printf("ID: "); fgets(buf, sizeof(buf), stdin); s.id = atoi(buf);
-            printf("Name: "); fgets(buf, sizeof(buf), stdin); strtok(buf, "\n"); strncpy(s.name, buf, MAX_STR-1);
-            printf("Programme: "); fgets(buf, sizeof(buf), stdin); strtok(buf, "\n"); strncpy(s.programme, buf, MAX_STR-1);
-            printf("Mark: "); fgets(buf, sizeof(buf), stdin); s.mark = atof(buf);
+
+            // Prompt for ID first
+            printf("ID: ");
+            if (!fgets(buf, sizeof(buf), stdin)) continue;
+            s.id = atoi(buf);
+
+            // Check if ID already exists
+            if (query_exists(s.id)) {   // <-- implement this helper
+                printf("Error: Student with ID %d already exists.\n", s.id);
+                continue; // abort insert early
+            }
+
+            // Only ask for the rest if ID is unique
+            printf("Name: ");
+            fgets(buf, sizeof(buf), stdin);
+            strtok(buf, "\n");
+            strncpy(s.name, buf, MAX_STR-1);
+
+            printf("Programme: ");
+            fgets(buf, sizeof(buf), stdin);
+            strtok(buf, "\n");
+            strncpy(s.programme, buf, MAX_STR-1);
+
+            printf("Mark: ");
+            fgets(buf, sizeof(buf), stdin);
+            s.mark = atof(buf);
+
             insert_record(s);
 
         } else if (strcasecmp(cmd, "QUERY") == 0) {
-            if (n >= 2) query(atoi(arg1));
+            if (n >= 2) {
+            int id = atoi(arg1);
+            query(id);
+            } else {
+            printf("Usage: QUERY <ID>\n");
+            }
+
 
         } else if (strcasecmp(cmd, "UPDATE") == 0) {
             if (n >= 2) update(atoi(arg1));
@@ -408,9 +453,9 @@ int main(void) {
                    "SHOW ALL SORT BY ID|MARK ASC|DESC\n"
                    "SHOW SUMMARY\n"
                    "INSERT\n"
-                   "QUERY ID\n"
-                   "UPDATE ID\n"
-                   "DELETE ID\n"
+                   "QUERY <ID>\n"
+                   "UPDATE <ID>\n"
+                   "DELETE <ID>\n"
                    "SAVE f\n"
                    "UNDO\n"
                    "EXIT\n");
