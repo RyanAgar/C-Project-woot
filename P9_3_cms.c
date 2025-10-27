@@ -157,12 +157,20 @@ int open_db(const char *filename){
     return 1;
 }
 
-void show_all(){
-    printf("ID\tName\tProgramme\tMark\n");
-    for(size_t i=0;i<arr_size;i++){
-        printf("%d\t%s\t%s\t%.1f\n", arr[i].id, arr[i].name, arr[i].programme, arr[i].mark);
+void show_all() {
+    // Print header with fixed widths
+    printf("%-10s %-15s %-25s %-6s\n", "ID", "Name", "Programme", "Mark");
+
+    // Print each student record with matching widths
+    for (size_t i = 0; i < arr_size; i++) {
+        printf("%-10d %-15s %-25s %-6.1f\n",
+               arr[i].id,
+               arr[i].name,
+               arr[i].programme,
+               arr[i].mark);
     }
 }
+
 
 int cmp_id_asc(const void *a, const void *b){ return ((Student*)a)->id - ((Student*)b)->id; }
 int cmp_id_desc(const void *a, const void *b){ return cmp_id_asc(b,a); }
