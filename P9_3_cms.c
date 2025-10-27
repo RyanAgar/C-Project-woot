@@ -450,7 +450,7 @@ int main(void) {
 
         } else if (strcasecmp(cmd, "SAVE") == 0) {
             if (n >= 2) save(arg1);
-            else printf("Usage: SAVE filename\n");
+            else printf("Usage: SAVE <filename>.txt\n");
 
         } else if (strcasecmp(cmd, "UNDO") == 0) {
             undo();
@@ -465,7 +465,7 @@ int main(void) {
                    "QUERY <ID>\n"
                    "UPDATE <ID>\n"
                    "DELETE <ID>\n"
-                   "SAVE <file>\n"
+                   "SAVE <filename>\n"
                    "UNDO\n"
                    "EXIT\n");
 
