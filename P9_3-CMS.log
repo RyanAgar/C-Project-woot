@@ -16,3 +16,12 @@
 [2025-10-27 23:18:14] INSERT 123 ra wew 1.0
 [2025-10-27 23:19:22] UNDO
 [2025-10-27 23:19:37] SAVE testing
+[2025-10-28 16:17:41] SAVE P9_3-CMS.txt
+[2025-10-28 16:20:44] OPEN p9_3-cms.txt (3 records)
+[2025-10-28 16:20:58] SAVE P9_3-CMS.txt
+[2025-10-28 16:25:47] OPEN P9_3-cms.txt (5 records)
+[2025-10-28 16:26:18] OPEN P9_3-cms.txt (5 records)
+[2025-10-28 16:31:31] OPEN p9_3-cms.txt (3 records)
+[2025-10-28 16:31:44] SAVE P9_3-CMS.txt
+[2025-10-28 16:33:49] OPEN P9_3-CMS.txt (3 records)
+[2025-10-28 16:36:29] SAVE P9_3-CMS.txt

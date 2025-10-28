@@ -155,8 +155,12 @@ int open_db(const char *filename){
     }
     arr_size = 0;
     char line[512];
+    int line_no = 0;
 
     while(fgets(line, sizeof(line), f)){
+        line_no++;
+        if (line_no <= 5) continue; // skip metadata + header
+
         Student s;
         if(parse_line(line, &s)){
             ensure_cap();
@@ -277,8 +281,17 @@ void save(const char *filename){
     FILE *f = fopen(filename, "w");
     if(!f){ printf("Save failed.\n"); return; }
 
+    // Write metadata header
+    fprintf(f, "Database Name: P9_3-CMS\n");
+    fprintf(f, "Authors: Ryan, Glenn, Min Han, Jordan, Ben\n");
+    fprintf(f, "Table Name: StudentRecords\n\n");
+
+    // Column headers
+    fprintf(f, "%-10s %-15s %-25s %-6s\n", "ID", "Name", "Programme", "Mark");
+
+    // Write student records
     for(size_t i=0;i<arr_size;i++)
-        fprintf(f, "%d\t%s\t%s\t%.1f\n", arr[i].id, arr[i].name, arr[i].programme, arr[i].mark);
+        fprintf(f, "%-10d %-15s %-25s %-6.1f\n", arr[i].id, arr[i].name, arr[i].programme, arr[i].mark);
 
     fclose(f);
     printf("CMS: Saved to \"%s\".\n", filename);
@@ -450,7 +463,7 @@ int main(void) {
 
         } else if (strcasecmp(cmd, "SAVE") == 0) {
             if (n >= 2) save(arg1);
-            else printf("Usage: SAVE <filename>.txt\n");
+            else printf("Usage: SAVE\n");
 
         } else if (strcasecmp(cmd, "UNDO") == 0) {
             undo();
@@ -465,7 +478,7 @@ int main(void) {
                    "QUERY <ID>\n"
                    "UPDATE <ID>\n"
                    "DELETE <ID>\n"
-                   "SAVE <filename>\n"
+                   "SAVE\n"
                    "UNDO\n"
                    "EXIT\n");
 

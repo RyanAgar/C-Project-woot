@@ -1,3 +1,8 @@
-2301234	Joshua Chen	Software Engineering	70.5
-2201234	Isaac Teo	Computer Science	63.4
-2304567	John Levoy	Digital Supply Chain	85.9
+Database Name: P9_3-CMS
+Authors: Ryan, Glenn, Min Han, Jordan, Ben
+Table Name: StudentRecords
+
+ID         Name            Programme                 Mark  
+2301234    Joshua Chen     Software Engineering      70.5  
+2201234    Isaac Teo       Computer Science          63.4  
+2304567    John Levoy      Digital Supply Chain      85.9  
