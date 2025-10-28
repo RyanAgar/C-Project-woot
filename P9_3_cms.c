@@ -18,27 +18,32 @@
 #define LOGFILE "P9_3-CMS.log"  // Filename for audit logging
 
 
-int query_exists(int id);
+int query_exists(int id);  // Checks if a student with the given ID already exists
 
+// Structure to store student record
 typedef struct {
-    int id;
-    char name[MAX_STR];
-    char programme[MAX_STR];
-    float mark;
+    int id;                         // Unique student ID
+    char name[MAX_STR];            // Student's name
+    char programme[MAX_STR];       // Programme enrolled
+    float mark;                    // Final mark
 } Student;
 
+// Enum to represent the type of last operation (for undo)
 typedef enum {OP_NONE, OP_INSERT, OP_DELETE, OP_UPDATE} OpType;
+
+// Structure to store undo information
 typedef struct {
-    OpType op;
-    Student before;
-    Student after;
+    OpType op;                     // Type of last operation
+    Student before;               // Record before change
+    Student after;                // Record after change
 } UndoRecord;
 
-Student *arr = NULL;
-size_t arr_size = 0;
-size_t arr_cap = 0;
+// Dynamic array to store student records
+Student *arr = NULL;              // Pointer to student array
+size_t arr_size = 0;              // Current number of records
+size_t arr_cap = 0;               // Current capacity of array
 
-UndoRecord last_op = {OP_NONE};
+UndoRecord last_op = {OP_NONE};  // Stores last operation for undo
 
 /* ---------------------------------------------------- */
 /* Utility Functions                                    */
