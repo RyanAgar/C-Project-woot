@@ -6,16 +6,17 @@
   Log File: P9_3-CMS.log
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <ctype.h>
-#include <stdarg.h>
+#include <stdio.h>     // Standard input/output: printf, fgets, fopen, etc.
+#include <stdlib.h>    // General utilities: malloc, free, atoi, atof, exit
+#include <string.h>    // String handling: strcpy, strcmp, strlen, strtok
+#include <time.h>      // Time functions: time, localtime, strftime
+#include <ctype.h>     // Character checks: isdigit, toupper, tolower
+#include <stdarg.h>    // Variable arguments: va_list, va_start, va_end
 
-#define MAX_STR 128
-#define INIT_CAP 16
-#define LOGFILE "P9_3-CMS.log"
+#define MAX_STR 128       // Maximum length for strings (e.g. name, programme)
+#define INIT_CAP 16       // Initial capacity for student array (used in dynamic resizing)
+#define LOGFILE "P9_3-CMS.log"  // Filename for audit logging
+
 
 int query_exists(int id);
 
