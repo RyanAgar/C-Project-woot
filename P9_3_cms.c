@@ -98,57 +98,48 @@ int find_index_by_id(int id){
 /* ---------------------------------------------------- */
 /* Robust Parsing (supports tab or variable spacing)    */
 /* ---------------------------------------------------- */
-int parse_line(const char *line, Student *s){
+int parse_line(const char *line, Student *s) {
     char buf[512];
     strncpy(buf, line, sizeof(buf)-1);
     buf[sizeof(buf)-1] = '\0';
 
-    /* Remove newline */
+    // Remove newline
     buf[strcspn(buf, "\r\n")] = 0;
 
-    /* If TABs exist, split directly — safest */
-    if(strchr(buf, '\t')){
-        char *id = strtok(buf, "\t");
-        char *name = strtok(NULL, "\t");
-        char *prog = strtok(NULL, "\t");
-        char *mark = strtok(NULL, "\t");
-        if(!id || !name || !prog || !mark) return 0;
-        s->id = atoi(id);
-        strncpy(s->name, name, MAX_STR-1);
-        strncpy(s->programme, prog, MAX_STR-1);
-        s->mark = atof(mark);
-        return 1;
-    }
-
-    /* Fallback: variable token parsing */
+    // Tokenize by whitespace
     char *tokens[64];
     int count = 0;
-    char *p = strtok(buf, " ");
-    while(p && count < 64){
+    char *p = strtok(buf, " \t");
+    while (p && count < 64) {
         tokens[count++] = p;
-        p = strtok(NULL, " ");
+        p = strtok(NULL, " \t");
     }
-    if(count < 4) return 0;
+    if (count < 4) return 0;
 
+    // First token = ID
     s->id = atoi(tokens[0]);
+
+    // Last token = Mark
     s->mark = atof(tokens[count-1]);
 
-    /* Middle tokens are name + programme. We guess split by assuming:
-       If name may vary, we let user clarify later when needed.
-       But since data already aligned in sample and lab, we combine middle tokens,
-       then allow editing after loading if needed.
-    */
-    char mid[256] = "";
-    for(int i=1;i<count-1;i++){
-        strcat(mid, tokens[i]);
-        if(i < count-2) strcat(mid, " ");
-    }
+    // Next two tokens = First + Last name
+    char namebuf[128] = "";
+    snprintf(namebuf, sizeof(namebuf), "%s %s", tokens[1], tokens[2]);
+    strncpy(s->name, namebuf, MAX_STR-1);
+    s->name[MAX_STR-1] = '\0';
 
-    strncpy(s->name, mid, MAX_STR-1);
-    s->programme[0] = '\0'; /* Editable via UPDATE if refinement needed */
+    // Everything between surname and mark = Programme
+    char progbuf[256] = "";
+    for (int i = 3; i < count-1; i++) {
+        strcat(progbuf, tokens[i]);
+        if (i < count-2) strcat(progbuf, " ");
+    }
+    strncpy(s->programme, progbuf, MAX_STR-1);
+    s->programme[MAX_STR-1] = '\0';
 
     return 1;
 }
+
 
 /* ---------------------------------------------------- */
 /* Core Operations                                      */
@@ -181,19 +172,21 @@ int open_db(const char *filename){
     return 1;
 }
 
-void show_all() {
+void show_all(void) {
     // Print header with fixed widths
-    printf("%-10s %-15s %-25s %-6s\n", "ID", "Name", "Programme", "Mark");
+    printf("%-10s %-20s %-30s %-6s\n",
+           "ID", "Name", "Programme", "Mark");
 
     // Print each student record with matching widths
     for (size_t i = 0; i < arr_size; i++) {
-        printf("%-10d %-15s %-25s %-6.1f\n",
+        printf("%-10d %-20s %-30s %-6.1f\n",
                arr[i].id,
                arr[i].name,
                arr[i].programme,
                arr[i].mark);
     }
 }
+
 
 
 int cmp_id_asc(const void *a, const void *b){ return ((Student*)a)->id - ((Student*)b)->id; }
