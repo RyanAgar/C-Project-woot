@@ -16,6 +16,7 @@
 #define MAX_STR 128       // Maximum length for strings (e.g. name, programme)
 #define INIT_CAP 16       // Initial capacity for student array (used in dynamic resizing)
 #define LOGFILE "P9_3-CMS.log"  // Filename for audit logging
+#define FILENAME "P9_3-CMS.txt"
 
 
 int query_exists(int id);  // Checks if a student with the given ID already exists
@@ -283,8 +284,8 @@ void delete(int id){
     last_op.before = before;
 }
 
-void save(const char *filename){
-    FILE *f = fopen(filename, "w");
+void save(){
+    FILE *f = fopen(FILENAME, "w");
     if(!f){ printf("Save failed.\n"); return; }
 
     // Write metadata header
@@ -300,8 +301,8 @@ void save(const char *filename){
         fprintf(f, "%-10d %-15s %-25s %-6.1f\n", arr[i].id, arr[i].name, arr[i].programme, arr[i].mark);
 
     fclose(f);
-    printf("CMS: Saved to \"%s\".\n", filename);
-    audit_log("SAVE %s", filename);
+    printf("CMS: Saved to \"%s\".\n", FILENAME);
+    audit_log("SAVE %s", FILENAME);
 }
 
 void summary() {
@@ -372,33 +373,33 @@ void undo(){
 /* ---------------------------------------------------- */
 
 int main(void) {
-    char line[256], cmd[64], arg1[64], arg2[64], arg3[64];
+    char userBuffer[256], command[64], arg1[64], arg2[64], arg3[64];
 
     printf("P9_3 CMS Ready. Type HELP.\n");
 
     while (1) {
         printf("P9_3> ");
-        if (!fgets(line, sizeof(line), stdin)) break;
+        if (!fgets(userBuffer, sizeof(userBuffer), stdin)) break;
 
-        // strip newline
-        line[strcspn(line, "\n")] = 0;
+        // strip newline from userBuffer
+        userBuffer[strcspn(userBuffer, "\n")] = 0;
 
-        // reset args
-        cmd[0] = arg1[0] = arg2[0] = arg3[0] = '\0';
+        // reset command and arguments
+        command[0] = arg1[0] = arg2[0] = arg3[0] = '\0';
 
         // tokenize up to 4 words
-        int n = sscanf(line, "%63s %63s %63s %63s", cmd, arg1, arg2, arg3);
+        int n = sscanf(userBuffer, "%63s %63s %63s %63s", command, arg1, arg2, arg3);
         if (n < 1) continue;
 
-        if (strcasecmp(cmd, "OPEN") == 0) {
+        if (strcasecmp(command, "OPEN") == 0) {
             if (n >= 2) open_db(arg1);
             else printf("Usage: OPEN filename\n");
 
-        } else if (strcasecmp(cmd, "SHOW") == 0) {
+        } else if (strcasecmp(command, "SHOW") == 0) {
             if (strcasecmp(arg1, "ALL") == 0) {
                 if (strcasecmp(arg2, "SORT") == 0 && strcasecmp(arg3, "BY") == 0) {
                     char field[16], order[16];
-                    if (sscanf(line, "%*s %*s %*s %*s %15s %15s", field, order) >= 1) {
+                    if (sscanf(userBuffer, "%*s %*s %*s %*s %15s %15s", field, order) >= 1) {
                         for (char *p = field; *p; p++) *p = toupper(*p);
                         for (char *p = order; *p; p++) *p = toupper(*p);
                         sort_and_show(field, (order[0] ? order : "ASC"));
@@ -412,7 +413,7 @@ int main(void) {
                 printf("Usage: SHOW ALL | SHOW SUMMARY | SHOW ALL SORT BY ...\n");
             }
 
-        } else if (strcasecmp(cmd, "INSERT") == 0) {
+        } else if (strcasecmp(command, "INSERT") == 0) {
             Student s;
             char buf[256];
 
@@ -444,14 +445,14 @@ int main(void) {
 
             insert_record(s);
 
-        } else if (strcasecmp(cmd, "QUERY") == 0) {
+        } else if (strcasecmp(command, "QUERY") == 0) {
             if (n >= 2) {
             int id = atoi(arg1);
             query(id);
             } else {
             printf("Usage: QUERY <ID>\n");
             }
-        } else if (strcasecmp(cmd, "UPDATE") == 0) {
+        } else if (strcasecmp(command, "UPDATE") == 0) {
             if (n >= 2) {
             int id = atoi(arg1);
             query(id);
@@ -459,7 +460,7 @@ int main(void) {
             printf("Usage: UPDATE <ID>\n");
             }
 
-        } else if (strcasecmp(cmd, "DELETE") == 0) {
+        } else if (strcasecmp(command, "DELETE") == 0) {
             if (n >= 2) {
             int id = atoi(arg1);
             query(id);
@@ -467,14 +468,14 @@ int main(void) {
             printf("Usage: DELETE <ID>\n");
             }
 
-        } else if (strcasecmp(cmd, "SAVE") == 0) {
-            if (n >= 2) save(arg1);
+        } else if (strcasecmp(command, "SAVE") == 0) {
+            if (n >= 1) save();
             else printf("Usage: SAVE\n");
 
-        } else if (strcasecmp(cmd, "UNDO") == 0) {
+        } else if (strcasecmp(command, "UNDO") == 0) {
             undo();
 
-        } else if (strcasecmp(cmd, "HELP") == 0) {
+        } else if (strcasecmp(command, "HELP") == 0) {
             printf("Commands:\n"
                    "OPEN <file>\n"
                    "SHOW ALL\n"
@@ -488,7 +489,7 @@ int main(void) {
                    "UNDO\n"
                    "EXIT\n");
 
-        } else if (strcasecmp(cmd, "EXIT") == 0) {
+        } else if (strcasecmp(command, "EXIT") == 0) {
             break;
 
         } else {
