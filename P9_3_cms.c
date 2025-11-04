@@ -212,26 +212,66 @@ void show_all(void) {
 }
 
 
-
-
-int cmp_id_asc(const void *a, const void *b){ return ((Student*)a)->id - ((Student*)b)->id; }
-int cmp_id_desc(const void *a, const void *b){ return cmp_id_asc(b,a); }
-int cmp_mark_asc(const void *a, const void *b){
-    float x=((Student*)a)->mark, y=((Student*)b)->mark;
-    return (x>y)-(x<y);
+int idAsc(const void* a, const void* b) {
+    Student* student_a = (Student*)a;
+    Student* student_b = (Student*)b;
+    return student_a->id - student_b->id; // access the id and sort in ascending
 }
-int cmp_mark_desc(const void *a, const void *b){ return cmp_mark_asc(b,a); }
 
-void sort_and_show(const char *field, const char *order){
-    if(strcmp(field,"ID")==0){
-        qsort(arr, arr_size, sizeof(Student),
-             (strcmp(order,"ASC")==0?cmp_id_asc:cmp_id_desc));
-    } else if(strcmp(field,"MARK")==0){
-        qsort(arr, arr_size, sizeof(Student),
-             (strcmp(order,"ASC")==0?cmp_mark_asc:cmp_mark_desc));
+int idDesc(const void* a, const void* b) {
+    Student* student_a = (Student*)a;
+    Student* student_b = (Student*)b;
+    return student_b->id - student_a->id; // access the id and sort in descending
+}
+
+int markAsc(const void* a, const void* b) {
+    float mark_a = ((Student*)a)->mark;
+    float mark_b = ((Student*)b)->mark;
+    if (mark_a > mark_b) {
+        return 1;  // a is greater so it comes after b
+    }
+    else if (mark_a < mark_b) {
+        return -1; // a is smaller so it comes before b
+    }
+    else {
+        return 0;  // a and b are equal
+    }
+}
+
+int markDesc(const void* a, const void* b) {
+    float mark_a = ((Student*)a)->mark;
+    float mark_b = ((Student*)b)->mark;
+    if (mark_a > mark_b) {
+        return -1;  // a is greater so it comes before b
+    }
+    else if (mark_a < mark_b) {
+        return 1; // a is smaller so it comes after b
+    }
+    else {
+        return 0;  // a and b are equal
+    }
+}
+
+void showSorted(const char* field, const char* order) {
+    if (strcmp(field, "ID") == 0) {
+        if (strcmp(order, "ASC") == 0) {
+            qsort(arr, arr_size, sizeof(Student), idAsc);
+        }
+        else if (strcmp(order, "DESC") == 0) {
+            qsort(arr, arr_size, sizeof(Student), idDesc);
+        }
+    }
+    else if (strcmp(field, "MARK") == 0) {
+        if (strcmp(order, "ASC") == 0) {
+            qsort(arr, arr_size, sizeof(Student), markAsc);
+        }
+        else if (strcmp(order, "DESC") == 0) {
+            qsort(arr, arr_size, sizeof(Student), markDesc);
+        }
     }
     show_all();
 }
+
 
 void insert_record(Student s){
 
@@ -470,20 +510,33 @@ int main(void) {
         } else if (strcasecmp(command, "SHOW") == 0) {
             if (strcasecmp(arg1, "ALL") == 0) {
                 if (strcasecmp(arg2, "SORT") == 0 && strcasecmp(arg3, "BY") == 0) {
-                    char field[16], order[16];
-                    if (sscanf(userBuffer, "%*s %*s %*s %*s %15s %15s", field, order) >= 1) {
-                        for (char *p = field; *p; p++) *p = toupper(*p);
-                        for (char *p = order; *p; p++) *p = toupper(*p);
-                        sort_and_show(field, (order[0] ? order : "ASC"));
+                    char field[16] = "\0";
+                    char order[16] = "\0";
+                    int numOfArgs = sscanf(userBuffer, "%*s %*s %*s %*s %15s %15s", field, order);
+                    if (numOfArgs >= 1) {
+                        for (int i = 0; field[i] != '\0'; i++) { //change field input to uppercase
+                            field[i] = toupper(field[i]);
+                        }
+                        for (int j = 0; order[j] != '\0'; j++) { //change order input to uppercase
+                            order[j] = toupper(order[j]);
+                        }
+                        if (order[0]) { // order field is provided in input
+                            showSorted(field, order);
+                        }
+                        else (showSorted(field, "ASC"));  // default to asc if order field not specified
                     }
-                } else {
+                }
+                else {
                     show_all();
                 }
-            } else if (strcasecmp(arg1, "SUMMARY") == 0) {
-                summary();
-            } else {
-                printf("Usage: SHOW ALL | SHOW SUMMARY | SHOW ALL SORT BY ...\n");
             }
+            else if (strcasecmp(arg1, "SUMMARY") == 0) {
+                summary();
+            }
+            else {
+                printf("Usage: SHOW ALL | SHOW SUMMARY | SHOW ALL SORT BY ...\n");
+        }
+
 
         } else if (strcasecmp(command, "INSERT") == 0) {
             Student s;
