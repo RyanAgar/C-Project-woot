@@ -131,10 +131,8 @@ int parse_line(const char *line, Student *s) {
     // Everything between surname and mark = Programme
     char progbuf[256] = "";
     for (int i = 3; i < count-1; i++) {
-        strncat(progbuf, tokens[i], sizeof(progbuf)-1 - strlen(progbuf));
-        if (i < count-2) {
-            strncat(progbuf, " ", sizeof(progbuf)-1 - strlen(progbuf));
-        }
+        strcat(progbuf, tokens[i]);
+        if (i < count-2) strcat(progbuf, " ");
     }
     strncpy(s->programme, progbuf, MAX_STR-1);
     s->programme[MAX_STR-1] = '\0';
@@ -229,37 +227,24 @@ void query(int id){
         printf("CMS: The record with ID %d does not exist.\n", id);
         return;
     }
-    printf("%-10s %-20s %-30s %-6s\n",
-           "ID", "Name", "Programme", "Mark");
-    printf("%-10d %-20s %-30s %-6.1f\n",
-               arr[i].id,
-               arr[i].name,
-               arr[i].programme,
-               arr[i].mark);
+
+    printf("%d\t%s\t%s\t%.1f\n", arr[i].id, arr[i].name, arr[i].programme, arr[i].mark);
 }
 
 void update(int id){
     int i = find_index_by_id(id);
-    if(i<0){ printf("CMS: The record with ID %d does not exist.\n", id); return; }
+    if(i<0){ printf("CMS: The record with ID %d does not exist.\n"); return; }
 
     Student before = arr[i], after = before;
     char buf[256];
 
     printf("New Name (enter to keep \"%s\"): ", before.name);
     fgets(buf, sizeof(buf), stdin);
-    if (buf[0] != '\n') {
-        char *nl = strtok(buf, "\r\n");
-        strncpy(after.name, nl, MAX_STR - 1);
-        after.name[MAX_STR - 1] = '\0';
-    }
+    if(buf[0] != '\n') strncpy(after.name, strtok(buf, "\r\n"), MAX_STR-1);
 
     printf("New Programme (enter to keep \"%s\"): ", before.programme);
     fgets(buf, sizeof(buf), stdin);
-    if (buf[0] != '\n') {
-        char *nl = strtok(buf, "\r\n");
-        strncpy(after.programme, nl, MAX_STR - 1);
-        after.programme[MAX_STR - 1] = '\0';
-    }
+    if(buf[0] != '\n') strncpy(after.programme, strtok(buf, "\r\n"), MAX_STR-1);
 
     printf("New Mark (enter to keep %.1f): ", before.mark);
     fgets(buf, sizeof(buf), stdin);
@@ -275,7 +260,7 @@ void update(int id){
 
 void delete(int id){
     int i = find_index_by_id(id);
-    if(i<0){ printf("CMS: The record with ID %d does not exist.\n", id); return; }
+    if(i<0){ printf("CMS: The record with ID %d does not exist.\n"); return; }
 
     char confirm[8];
     printf("Confirm delete (Y/N)? ");
@@ -383,7 +368,7 @@ void undo(){
 int main(void) {
     char userBuffer[256], command[64], arg1[64], arg2[64], arg3[64];
 
-    printf("P9_3 CMS Ready. Type HELP.\n");
+    printf("Hello there! P9_3 CMS Ready. Type HELP to display available commands.\n");
 
     while (1) {
         printf("P9_3> ");
@@ -441,13 +426,11 @@ int main(void) {
             fgets(buf, sizeof(buf), stdin);
             strtok(buf, "\n");
             strncpy(s.name, buf, MAX_STR-1);
-            s.name[MAX_STR-1] = '\0';
 
             printf("Programme: ");
             fgets(buf, sizeof(buf), stdin);
             strtok(buf, "\n");
             strncpy(s.programme, buf, MAX_STR-1);
-            s.programme[MAX_STR-1] = '\0';
 
             printf("Mark: ");
             fgets(buf, sizeof(buf), stdin);
@@ -465,7 +448,7 @@ int main(void) {
         } else if (strcasecmp(command, "UPDATE") == 0) {
             if (n >= 2) {
             int id = atoi(arg1);
-            update(id);
+            query(id);
             } else {
             printf("Usage: UPDATE <ID>\n");
             }
@@ -473,7 +456,7 @@ int main(void) {
         } else if (strcasecmp(command, "DELETE") == 0) {
             if (n >= 2) {
             int id = atoi(arg1);
-            delete(id);
+            query(id);
             } else {
             printf("Usage: DELETE <ID>\n");
             }
