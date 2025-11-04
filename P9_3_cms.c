@@ -18,6 +18,13 @@
 #define LOGFILE "P9_3-CMS.log"  // Filename for audit logging
 #define FILENAME "P9_3-CMS.txt"
 
+// ANSI color codes
+#define RESET   "\033[0m"
+#define RED     "\033[31m"
+#define GREEN   "\033[32m"
+#define YELLOW  "\033[33m"
+#define CYAN    "\033[36m"
+#define BOLD    "\033[1m"
 
 int query_exists(int id);  // Checks if a student with the given ID already exists
 
@@ -173,19 +180,37 @@ int open_db(const char *filename){
 }
 
 void show_all(void) {
-    // Print header with fixed widths
-    printf("%-10s %-20s %-30s %-6s\n",
+
+    if (arr_size == 0) {
+        printf("CMS: No records loaded. Use OPEN <filename> first.\n");
+        return;
+    }
+
+    // Print header in bold cyan
+    printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET,
            "ID", "Name", "Programme", "Mark");
 
     // Print each student record with matching widths
     for (size_t i = 0; i < arr_size; i++) {
-        printf("%-10d %-20s %-30s %-6.1f\n",
+        const char *color = RESET;
+
+        // Decide color based on mark
+        if (arr[i].mark >= 80) {
+            color = GREEN;   // excellent
+        } else if (arr[i].mark < 50) {
+            color = RED;     // failing
+        } else {
+            color = YELLOW;  // average
+        }
+
+        printf("%-10d %-20s %-30s %s%-6.1f%s\n",
                arr[i].id,
                arr[i].name,
                arr[i].programme,
-               arr[i].mark);
+               color, arr[i].mark, RESET);
     }
 }
+
 
 
 
@@ -209,6 +234,11 @@ void sort_and_show(const char *field, const char *order){
 }
 
 void insert_record(Student s){
+
+    if (arr_size == 0) {
+        printf("CMS: No records loaded. Use OPEN <filename> first.\n");
+        return;
+    }
     if(find_index_by_id(s.id) != -1){
         printf("CMS: ID already exists!\n");
         return;
@@ -222,16 +252,47 @@ void insert_record(Student s){
 }
 
 void query(int id){
+
+    if (arr_size == 0) {
+        printf("CMS: No records loaded. Use OPEN <filename> first.\n");
+        return;
+    }
     int i = find_index_by_id(id);
     if (i < 0) {
         printf("CMS: The record with ID %d does not exist.\n", id);
         return;
     }
+    // Print header in bold cyan
+    printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET,
+           "ID", "Name", "Programme", "Mark");
 
-    printf("%d\t%s\t%s\t%.1f\n", arr[i].id, arr[i].name, arr[i].programme, arr[i].mark);
+    // Print each student record with matching widths
+        const char *color = RESET;
+
+        // Decide color based on mark
+        if (arr[i].mark >= 80) {
+            color = GREEN;   // excellent
+        } else if (arr[i].mark < 50) {
+            color = RED;     // failing
+        } else {
+            color = YELLOW;  // average
+        }
+
+        printf("%-10d %-20s %-30s %s%-6.1f%s\n",
+               arr[i].id,
+               arr[i].name,
+               arr[i].programme,
+               color, arr[i].mark, RESET);
+    
 }
 
 void update(int id){
+
+    if (arr_size == 0) {
+        printf("CMS: No records loaded. Use OPEN <filename> first.\n");
+        return;
+    }
+
     int i = find_index_by_id(id);
     if(i<0){ printf("CMS: The record with ID %d does not exist.\n"); return; }
 
@@ -259,6 +320,12 @@ void update(int id){
 }
 
 void delete(int id){
+
+    if (arr_size == 0) {
+        printf("CMS: No records loaded. Use OPEN <filename> first.\n");
+        return;
+    }
+
     int i = find_index_by_id(id);
     if(i<0){ printf("CMS: The record with ID %d does not exist.\n"); return; }
 
@@ -278,6 +345,11 @@ void delete(int id){
 }
 
 void save(){
+
+    if (arr_size == 0) {
+        printf("CMS: No records loaded. Use OPEN <filename> first.\n");
+        return;
+    }
     FILE *f = fopen(FILENAME, "w");
     if(!f){ printf("Save failed.\n"); return; }
 
@@ -367,8 +439,15 @@ void undo(){
 
 int main(void) {
     char userBuffer[256], command[64], arg1[64], arg2[64], arg3[64];
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    
+    char datetime[64];
+    strftime(datetime, sizeof(datetime), "%A, %d %B %Y, %I:%M %p", t);
 
-    printf("Hello there! P9_3 CMS Ready. Type HELP to display available commands.\n");
+    printf("Hello there! P9_3 Classroom Management System [CMS] Ready. Today is %s.\n", datetime);
+    printf("Type HELP to display available commands.\n");
+
 
     while (1) {
         printf("P9_3> ");
@@ -448,7 +527,7 @@ int main(void) {
         } else if (strcasecmp(command, "UPDATE") == 0) {
             if (n >= 2) {
             int id = atoi(arg1);
-            query(id);
+            update(id);
             } else {
             printf("Usage: UPDATE <ID>\n");
             }
@@ -456,7 +535,7 @@ int main(void) {
         } else if (strcasecmp(command, "DELETE") == 0) {
             if (n >= 2) {
             int id = atoi(arg1);
-            query(id);
+            delete(id);
             } else {
             printf("Usage: DELETE <ID>\n");
             }

@@ -7,3 +7,4 @@ ID         Name            Programme                 Mark
 2201234    Isaac Teo       Computer Science          63.4  
 2304567    John Levoy      Digital Supply Chain      85.9  
 1234567    Ben Dover       Information Security      69.0  
+7654321    Harry Pitts     Artificial Intelligence   40.0  

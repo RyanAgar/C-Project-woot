@@ -54,3 +54,18 @@
 [2025-11-04 22:24:49] OPEN p9_3-cms.txt (4 records)
 [2025-11-04 22:30:39] UPDATE 1234567
 [2025-11-04 22:30:42] UNDO
+[2025-11-04 22:49:00] OPEN p9_3-cms.txt (4 records)
+[2025-11-04 22:56:57] OPEN p9_3-cms.txt (4 records)
+[2025-11-04 22:57:04] UPDATE 1234567
+[2025-11-04 22:58:45] INSERT 0 
+ 
+ 0.0
+[2025-11-04 23:04:01] OPEN p9_3-cms.txt (4 records)
+[2025-11-04 23:05:36] INSERT 7654321 Harry Pitts Artificial Intelligence  40.0
+[2025-11-04 23:08:00] OPEN p9_3-cms.txt (4 records)
+[2025-11-04 23:09:25] OPEN p9_3-cms.txt (4 records)
+[2025-11-04 23:10:49] OPEN p9_3-cms.txt (4 records)
+[2025-11-04 23:10:58] UPDATE 1234567
+[2025-11-04 23:18:36] INSERT 7654321 Harry Pitts Artificial Intelligence 40.0
+[2025-11-04 23:18:41] SAVE P9_3-CMS.txt
+[2025-11-04 23:19:34] OPEN P9_3_cms.exe (0 records)
