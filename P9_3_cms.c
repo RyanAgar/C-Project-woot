@@ -229,8 +229,13 @@ void query(int id){
         printf("CMS: The record with ID %d does not exist.\n", id);
         return;
     }
-
-    printf("%d\t%s\t%s\t%.1f\n", arr[i].id, arr[i].name, arr[i].programme, arr[i].mark);
+    printf("%-10s %-20s %-30s %-6s\n",
+           "ID", "Name", "Programme", "Mark");
+    printf("%-10d %-20s %-30s %-6.1f\n",
+               arr[i].id,
+               arr[i].name,
+               arr[i].programme,
+               arr[i].mark);
 }
 
 void update(int id){
