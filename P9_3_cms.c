@@ -28,6 +28,9 @@
 
 int query_exists(int id);  // Checks if a student with the given ID already exists
 
+// Static variable to hold the "current user" for logging
+static const char* CURRENT_USER = "P9_3-Admin"; // You can place this just before audit_log
+
 // Structure to store student record
 typedef struct {
     int id;                         // Unique student ID
@@ -66,22 +69,31 @@ int query_exists(int id) {  //Student ID Check
     return 0; // not found
 }
 
-
 void audit_log(const char *fmt, ...) {
     FILE *f = fopen(LOGFILE, "a");
-    if(!f) return;
+    if(!f) {
+        // Print an error message if logging fails
+        printf(RED "CMS Error: Failed to open or write to audit log file \"%s\"." RESET "\n", LOGFILE);
+        return;
+    }
 
+    // 1. Get Timestamp
     time_t t = time(NULL);
     struct tm *tm = localtime(&t);
     char ts[32];
     strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", tm);
-    fprintf(f, "[%s] ", ts);
 
+    // 2. Write Contextual Metadata to Log
+    // Format
+    fprintf(f, "[%s] [%s] (Records: %zu) ", ts, CURRENT_USER, arr_size);
+
+    // 3. Write Variable Arguments
     va_list ap;
     va_start(ap, fmt);
     vfprintf(f, fmt, ap);
     va_end(ap);
 
+    // 4. Finalize and Close
     fprintf(f, "\n");
     fclose(f);
 }
@@ -100,6 +112,25 @@ int find_index_by_id(int id){
     for(size_t i=0;i<arr_size;i++)
         if(arr[i].id == id) return (int)i;
     return -1;
+}
+
+void print_student_record(const Student *s) {
+    const char *color = RESET;
+    
+    // Decide color based on mark
+    if (s->mark >= 80) {
+        color = GREEN;    // excellent
+    } else if (s->mark < 50) {
+        color = RED;      // failing
+    } else {
+        color = YELLOW;   // average
+    }
+
+    printf("%-10d %-20s %-30s %s%-6.1f%s\n",
+           s->id,
+           s->name,
+           s->programme,
+           color, s->mark, RESET);
 }
 
 /* ---------------------------------------------------- */
@@ -447,30 +478,70 @@ void summary() {
     printf("===========================\n");
 }
 
+/**
+ * @brief Reverts the last INSERT, DELETE, or UPDATE operation.
+ */
 void undo(){
     if(last_op.op == OP_NONE){
-        printf("Nothing to undo.\n");
+        printf(YELLOW "CMS: Nothing to undo.\n" RESET);
         return;
     }
 
+    printf("\n" BOLD "===== Performing UNDO operation =====" RESET "\n");
+    
+    // Print the record header for visual clarity
+    printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET,
+           "ID", "Name", "Programme", "Mark");
+    printf(CYAN "------------------------------------------------------------------\n" RESET);
+
     if(last_op.op == OP_INSERT){
+        // UNDO INSERT: Delete the record that was inserted (stored in last_op.after)
         int i = find_index_by_id(last_op.after.id);
-        if(i>=0){ arr[i] = arr[arr_size-1]; arr_size--; }
-        printf("Undo INSERT done.\n");
+        if(i>=0 && arr_size > 0){
+            printf(YELLOW "Removed record:\n" RESET);
+            print_student_record(&arr[i]); // Show the record being removed
+            
+            // Delete the record (swap with last and decrease size)
+            arr[i] = arr[arr_size-1];
+            arr_size--; 
+            
+            printf(GREEN "CMS: Undo INSERT successful (Record ID %d removed).\n" RESET, last_op.after.id);
+            audit_log("UNDO INSERT (ID %d removed)", last_op.after.id);
+        } else {
+            printf(RED "CMS Error: Undo failed. Record ID %d not found or array empty.\n" RESET, last_op.after.id);
+            audit_log("UNDO INSERT failed (ID %d not found)", last_op.after.id);
+        }
     }
     else if(last_op.op == OP_DELETE){
+        // UNDO DELETE: Re-insert the deleted record (stored in last_op.before)
         ensure_cap();
         arr[arr_size++] = last_op.before;
-        printf("Undo DELETE done.\n");
+
+        printf(GREEN "Re-inserted record:\n" RESET);
+        print_student_record(&last_op.before); // Show the record being re-inserted
+        
+        printf(GREEN "CMS: Undo DELETE successful (Record ID %d re-inserted).\n" RESET, last_op.before.id);
+        audit_log("UNDO DELETE (ID %d re-inserted)", last_op.before.id);
     }
     else if(last_op.op == OP_UPDATE){
-        int i = find_index_by_id(last_op.after.id);
-        if(i>=0) arr[i] = last_op.before;
-        printf("Undo UPDATE done.\n");
+        // UNDO UPDATE: Restore the record state from last_op.before
+        int i = find_index_by_id(last_op.after.id); // Search using the ID from the 'after' state (current ID)
+        if(i>=0) {
+            printf(YELLOW "Restoring record from state before update:\n" RESET);
+            print_student_record(&last_op.before); // Show the record's state before the update
+            
+            arr[i] = last_op.before; // Revert the record to the 'before' state
+            
+            printf(GREEN "CMS: Undo UPDATE successful (Record ID %d reverted).\n" RESET, last_op.before.id);
+            audit_log("UNDO UPDATE (ID %d restored)", last_op.before.id);
+        } else {
+            printf(RED "CMS Error: Undo failed. Record ID %d not found.\n" RESET, last_op.after.id);
+            audit_log("UNDO UPDATE failed (ID %d not found)", last_op.after.id);
+        }
     }
 
-    audit_log("UNDO");
-    last_op.op = OP_NONE;
+    printf(BOLD "====================================" RESET "\n");
+    last_op.op = OP_NONE; // Clear the UNDO buffer after execution
 }
 
 /* ---------------------------------------------------- */
@@ -625,4 +696,5 @@ int main(void) {
     free(arr);
     return 0;
 }
+
 
