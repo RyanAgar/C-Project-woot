@@ -470,12 +470,15 @@ void summary() {
 
     double average = sum / total;
 
-    printf("===== Student Summary =====\n");
-    printf("Total students : %d\n", total);
-    printf("Average mark   : %.2f\n", average);
-    printf("Highest mark   : %.1f (%s)\n", highest, arr[hi_index].name);
-    printf("Lowest mark    : %.1f (%s)\n", lowest, arr[lo_index].name);
-    printf("===========================\n");
+    printf(CYAN"===== Student Summary =====\n" RESET);
+    printf("Total students :  %d\n", total);
+    printf("Average mark   :"); 
+    printf(YELLOW " % .2f\n" RESET, average);
+    printf("Highest mark   : ");
+    printf(GREEN "% .1f (% s)\n" RESET, highest, arr[hi_index].name);
+    printf("Lowest mark    :");
+    printf(RED " % .1f (% s)\n" RESET, lowest, arr[lo_index].name);
+    printf(CYAN"===========================\n" RESET);
 }
 
 /**
