@@ -183,29 +183,44 @@ int parse_line(const char *line, Student *s) {
 /* Core Operations                                      */
 /* ---------------------------------------------------- */
 
-int open_db(const char *filename){
-    FILE *f = fopen(filename, "r");
-    if(!f){
-        printf("CMS: Failed to open \"%s\"\n", filename);
+int open_db(const char *filePath){
+    FILE *filePtr;
+    filePtr = fopen(filePath, "r");
+
+    if (filePtr == NULL) { //check if pointer is NULL
+        printf("CMS: Failed to open \"%s\"\n", filePath);
         return 0;
     }
+    int filePathLength = strlen(filePath);
+    if (filePathLength <= 4) {
+        printf("CMS: File is not a txt file.\n");
+        return 0;
+    } else if (filePathLength > 4) { //printf("%c\n",filePath[filePathLength-1]);
+        if (! (filePath[filePathLength-1] == 't' && filePath[filePathLength-2] == 'x' && filePath[filePathLength-3] == 't' && filePath[filePathLength-4] == '.')) {
+            printf("CMS: File is not a txt file.\n");
+            return 0;
+        }
+    }
+    
     arr_size = 0;
-    char line[512];
-    int line_no = 0;
+    char currentFileLine[512];
+    int lineNumber = 0;
 
-    while(fgets(line, sizeof(line), f)){
-        line_no++;
-        if (line_no <= 5) continue; // skip metadata + header
+    while(fgets(currentFileLine, sizeof(currentFileLine), filePtr)) {
+        lineNumber++; //line number will increment based on number of iterations
+        if (lineNumber <= 5) { 
+            continue; //will skip rest of loop for lines with our info and table header
+        } 
 
         Student s;
-        if(parse_line(line, &s)){
+        if(parse_line(currentFileLine, &s)){
             ensure_cap();
             arr[arr_size++] = s;
         }
     }
-    fclose(f);
-    printf("CMS: \"%s\" opened (%zu records)\n", filename, arr_size);
-    audit_log("OPEN %s (%zu records)", filename, arr_size);
+    fclose(filePtr);
+    printf("CMS: \"%s\" opened (%zu records)\n", filePath, arr_size);
+    audit_log("OPEN %s (%zu records)", filePath, arr_size);
     last_op.op = OP_NONE;
     return 1;
 }
