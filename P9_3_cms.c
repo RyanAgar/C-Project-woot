@@ -178,6 +178,55 @@ int parse_line(const char *line, Student *s) {
     return 1;
 }
 
+/* ---------------------- */
+/*  Helpers for update    */
+/* ---------------------- */
+
+static void trim_newline(char *s) {
+    if (!s) return;
+    size_t n = strlen(s);
+    while (n && (s[n-1] == '\n' || s[n-1] == '\r')) s[--n] = '\0';
+}
+
+static void print_diff_row(const char *label, const char *before, const char *after) {
+    int changed = strcmp(before, after) != 0;
+    printf("%-12s | %-30s | %s%-30s%s\n",
+           label,
+           before,
+           changed ? GREEN : RESET,
+           after,
+           changed ? RESET : RESET);
+}
+
+static int prompt_edit_str(const char *label, char *dst, size_t cap, const char *current) {
+    /* returns 1 if changed, 0 if kept */
+    char buf[256];
+    printf("%s (Enter to keep \"%s\"): ", label, current);
+    if (!fgets(buf, sizeof(buf), stdin)) { buf[0] = '\0'; }
+    if (buf[0] == '\n') return 0;               // keep
+    trim_newline(buf);
+    strncpy(dst, buf, cap - 1);
+    dst[cap - 1] = '\0';
+    return 1;
+}
+
+static int prompt_edit_mark(float *out, float current) {
+    /* returns 1 if changed, 0 if kept; does basic validation 0..100 */
+    char buf[128];
+    printf("Mark (Enter to keep %.1f): ", current);
+    if (!fgets(buf, sizeof(buf), stdin) || buf[0] == '\n') return 0; // keep
+    trim_newline(buf);
+
+    char *endp = NULL;
+    double mv = strtod(buf, &endp);
+    if (endp == buf || *endp != '\0' || mv < 0.0 || mv > 100.0) {
+        printf(RED "Invalid mark. Please enter a number from 0 to 100.\n" RESET);
+        return prompt_edit_mark(out, current);  // re-prompt
+    }
+    *out = (float)mv;
+    return 1;
+}
+
 
 /* ---------------------------------------------------- */
 /* Core Operations                                      */
@@ -373,37 +422,71 @@ void query(int id){
 }
 
 void update(int id){
-
     if (arr_size == 0) {
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
 
-    int i = find_index_by_id(id);
-    if(i<0){ printf("CMS: The record with ID %d does not exist.\n"); return; }
+    int idx = find_index_by_id(id);
+    if (idx < 0) {
+        printf("CMS: The record with ID %d does not exist.\n", id);
+        return;
+    }
 
-    Student before = arr[i], after = before;
-    char buf[256];
+    Student before = arr[idx];
+    Student after  = before;
 
-    printf("New Name (enter to keep \"%s\"): ", before.name);
-    fgets(buf, sizeof(buf), stdin);
-    if(buf[0] != '\n') strncpy(after.name, strtok(buf, "\r\n"), MAX_STR-1);
+    /* Show current record */
+    printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET, "ID", "Name", "Programme", "Mark");
+    print_student_record(&before);
 
-    printf("New Programme (enter to keep \"%s\"): ", before.programme);
-    fgets(buf, sizeof(buf), stdin);
-    if(buf[0] != '\n') strncpy(after.programme, strtok(buf, "\r\n"), MAX_STR-1);
+    /* Prompt edits (Enter to keep) */
+    int changed = 0;
+    changed |= prompt_edit_str("Name",      after.name,      MAX_STR, before.name);
+    changed |= prompt_edit_str("Programme", after.programme, MAX_STR, before.programme);
+    changed |= prompt_edit_mark(&after.mark, before.mark);
 
-    printf("New Mark (enter to keep %.1f): ", before.mark);
-    fgets(buf, sizeof(buf), stdin);
-    if(buf[0] != '\n') after.mark = atof(buf);
+    if (!changed) {
+        printf(YELLOW "No changes detected. Update cancelled.\n" RESET);
+        return;
+    }
 
-    arr[i] = after;
-    printf("CMS: Record updated.\n");
-    audit_log("UPDATE %d", id);
+    /* Show a before/after diff and confirm */
+    printf("\n" BOLD "Review changes:" RESET "\n");
+    printf("%-12s | %-30s | %-30s\n", "Field", "Before", "After");
+    printf("-------------+--------------------------------+--------------------------------\n");
+
+    print_diff_row("Name",      before.name,      after.name);
+    print_diff_row("Programme", before.programme, after.programme);
+
+    char bmark[32], amark[32];
+    snprintf(bmark, sizeof(bmark), "%.1f", before.mark);
+    snprintf(amark, sizeof(amark), "%.1f", after.mark);
+    print_diff_row("Mark", bmark, amark);
+
+    char confirm[32];
+    printf("\nConfirm update (Y/N)? ");
+    if (!fgets(confirm, sizeof(confirm), stdin)) {
+        printf("Cancelled.\n");
+        return;
+    }
+    // normalize tolower safely
+    for (char *p = confirm; *p; ++p) *p = (char)tolower((unsigned char)*p);
+    if (confirm[0] != 'y') {
+        printf("Cancelled.\n");
+        return;
+    }
+
+    /* Apply, log, and prepare UNDO */
+    arr[idx] = after;
+    printf(GREEN "CMS: Record updated.\n" RESET);
+    audit_log("UPDATE %d | \"%s\" -> \"%s\" | \"%s\" -> \"%s\" | %.1f -> %.1f",
+              id, before.name, after.name, before.programme, after.programme, before.mark, after.mark);
     last_op.op = OP_UPDATE;
     last_op.before = before;
-    last_op.after = after;
+    last_op.after  = after;
 }
+
 
 void delete(int id){
 
