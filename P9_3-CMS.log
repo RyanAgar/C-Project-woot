@@ -81,3 +81,9 @@
 [2025-11-11 16:39:55] [P9_3-Admin] (Records: 6) OPEN p9_3-CMS.txt (6 records)
 [2025-11-11 16:40:28] [P9_3-Admin] (Records: 5) DELETE 8888888 | "Eighty Eighter" | "Marketing" | 88.8
 [2025-11-11 16:40:40] [P9_3-Admin] (Records: 5) SAVE P9_3-CMS.txt
+[2025-11-11 22:42:12] [P9_3-Admin] (Records: 5) OPEN P9_3-cms.txt (5 records)
+[2025-11-11 22:42:57] [P9_3-Admin] (Records: 5) UPDATE 1234567 | "Ben Doper" -> "Ben Dover" | "Information Security" -> "Information Security" | 69.7 -> 69.7
+[2025-11-11 22:44:42] [P9_3-Admin] (Records: 4) DELETE 1234567 | "Ben Dover" | "Information Security" | 69.7
+[2025-11-11 22:44:43] [P9_3-Admin] (Records: 5) UNDO DELETE (ID 1234567 re-inserted)
+[2025-11-11 22:45:06] [P9_3-Admin] (Records: 5) UPDATE 1234567 | "Ben Dover" -> "Ben Dover" | "Information Security" -> "Information Security" | 69.7 -> 99.0
+[2025-11-11 22:45:09] [P9_3-Admin] (Records: 5) UNDO UPDATE (ID 1234567 restored)
