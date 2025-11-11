@@ -178,9 +178,9 @@ int parse_line(const char *line, Student *s) {
     return 1;
 }
 
-/* ---------------------- */
-/*  Helpers for update    */
-/* ---------------------- */
+/* ------------------------------ */
+/*  Helpers for update/ delete    */
+/* ------------------------------ */
 
 static void trim_newline(char *s) {
     if (!s) return;
@@ -225,6 +225,21 @@ static int prompt_edit_mark(float *out, float current) {
     }
     *out = (float)mv;
     return 1;
+}
+
+static int confirm_delete_by_id(int expected_id) {
+    char buf[64];
+    printf("Type the ID " BOLD "%d" RESET " to confirm delete (or 'N' to cancel): ", expected_id);
+    if (!fgets(buf, sizeof(buf), stdin)) return 0;
+    trim_newline(buf);
+
+    // allow 'n' / 'N' to cancel quickly
+    if (buf[0] && (buf[0]=='n' || buf[0]=='N') && buf[1]=='\0') return 0;
+
+    char *endp = NULL;
+    long v = strtol(buf, &endp, 10);
+    if (endp == buf || *endp != '\0') return 0;   // not a clean integer
+    return (v == expected_id);
 }
 
 
@@ -489,29 +504,43 @@ void update(int id){
 
 
 void delete(int id){
-
     if (arr_size == 0) {
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
 
     int i = find_index_by_id(id);
-    if(i<0){ printf("CMS: The record with ID %d does not exist.\n"); return; }
-
-    char confirm[8];
-    printf("Confirm delete (Y/N)? ");
-    fgets(confirm, sizeof(confirm), stdin);
-    if(toupper(confirm[0])!='Y'){ printf("Cancelled.\n"); return; }
+    if (i < 0) {
+        printf("CMS: The record with ID %d does not exist.\n", id);
+        return;
+    }
 
     Student before = arr[i];
-    arr[i] = arr[arr_size-1];
+
+    // 1) Show the record to be deleted (like query)
+    printf("\n" BOLD "About to delete this record:" RESET "\n");
+    printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET, "ID", "Name", "Programme", "Mark");
+    print_student_record(&before);
+
+    // 2) Ask for strong confirmation (type the ID)
+    if (!confirm_delete_by_id(before.id)) {
+        printf(YELLOW "Cancelled.\n" RESET);
+        return;
+    }
+
+    // 3) Delete (current behavior: swap with last for O(1))
+    arr[i] = arr[arr_size - 1];
     arr_size--;
 
-    printf("CMS: Record deleted.\n");
-    audit_log("DELETE %d", before.id);
+    // 4) Feedback, log, and set UNDO
+    printf(GREEN "CMS: Record deleted.\n" RESET);
+    audit_log("DELETE %d | \"%s\" | \"%s\" | %.1f",
+              before.id, before.name, before.programme, before.mark);
+
     last_op.op = OP_DELETE;
     last_op.before = before;
 }
+
 
 void save(){
 

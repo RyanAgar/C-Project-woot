@@ -71,3 +71,13 @@
 [2025-11-04 23:19:34] OPEN P9_3_cms.exe (0 records)
 [2025-11-11 16:29:21] [P9_3-Admin] (Records: 5) OPEN P9_3-CMS.txt (5 records)
 [2025-11-11 16:30:44] [P9_3-Admin] (Records: 5) UPDATE 1234567 | "Ben Dover" -> "Ben Doper" | "Information Security" -> "Information Security" | 69.0 -> 69.7
+[2025-11-11 16:33:04] [P9_3-Admin] (Records: 5) SAVE P9_3-CMS.txt
+[2025-11-11 16:33:51] [P9_3-Admin] (Records: 6) INSERT 9999999 Niner Nine Marketing 99.9
+[2025-11-11 16:34:09] [P9_3-Admin] (Records: 6) SAVE P9_3-CMS.txt
+[2025-11-11 16:35:43] [P9_3-Admin] (Records: 5) DELETE 9999999
+[2025-11-11 16:35:44] [P9_3-Admin] (Records: 5) SAVE P9_3-CMS.txt
+[2025-11-11 16:36:09] [P9_3-Admin] (Records: 6) INSERT 8888888 Eighty Eighter Marketing 88.8
+[2025-11-11 16:36:12] [P9_3-Admin] (Records: 6) SAVE P9_3-CMS.txt
+[2025-11-11 16:39:55] [P9_3-Admin] (Records: 6) OPEN p9_3-CMS.txt (6 records)
+[2025-11-11 16:40:28] [P9_3-Admin] (Records: 5) DELETE 8888888 | "Eighty Eighter" | "Marketing" | 88.8
+[2025-11-11 16:40:40] [P9_3-Admin] (Records: 5) SAVE P9_3-CMS.txt
