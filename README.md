@@ -46,5 +46,5 @@ Some quirks that reflect our process:
 
 ## How To Run The Program
 Open bash:
-gcc -o P9_3_CMS P9_3_CMS.c
-./P9_3_CMS.exe
+- gcc -o P9_3_CMS P9_3_CMS.c
+- ./P9_3_CMS.exe
