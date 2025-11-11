@@ -42,6 +42,8 @@ Some quirks that reflect our process:
 - Jordan
 - Ben
 
+---
+
 ## How To Run The Program
 Open bash:
 gcc -o P9_3_CMS P9_3_CMS.c
