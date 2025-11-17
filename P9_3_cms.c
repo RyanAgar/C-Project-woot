@@ -1200,6 +1200,30 @@ int main(void) {
     strftime(datetime, sizeof(datetime),
              "%A, %d %B %Y, %I:%M %p", t);
 
+    printf(RED"============================================== DECLARATION ==============================================\n" RESET);
+    printf("SIT's policy on copying does not allow the students to copy source code as well as assessment solutions from another person AI or other places. "
+        "It is the students' responsibility to guarantee that their assessment solutions are their own work. "
+        "Meanwhile, the students must also ensure that their work is not accessible by others. "
+        "Where such plagiarism is detected, both of the assessments involved will receive ZERO mark.\n\n");
+    printf("We hereby declare that:\n");
+    printf("    - We fully understand and agree to the abovementioned plagiarism policy.\n");
+    printf("    - We did not copy any code from others or from other places.\n");
+    printf("    - We did not share our codes with others or upload to any other places for public access and will not do that in the future.\n");
+    printf("    - We agree that our project will receive Zero mark if there is any plagiarism detected.\n");
+    printf("    - We agree that we will not disclose any information or material of the group project to others or upload to any other places for public access.\n");
+    printf("    - We agree that we did not copy any code directly from AI generated sources.\n\n");
+
+    printf("Declared by: P9-3\n"
+        "Team members:\n");
+    printf("    1. Ng Si Yuan Ryan\n");
+    printf("    2. Ong Tiong Yew Glenn\n");
+    printf("    3. Lim Ler Yang, Jordan\n");
+    printf("    4. Chong Min Han\n");
+    printf("    5. Wong Kok Sheng Benjamin\n\n");
+
+    printf("Date: 24th November 2025\n");
+    printf(RED"=========================================================================================================\n\n"RESET);
+
     printf("Hello there! P9_3 Classroom Management System [CMS] Ready. Today is %s.\n",
            datetime);
     printf("Type HELP to display available commands.\n");
