@@ -473,7 +473,7 @@ int open_db(const char *filePath) {
 
     // If fopen() returns NULL, file was not found or cannot be opened.
     if (filePtr == NULL) {
-        printf("CMS: Failed to open \"%s\"\n", filePath);
+        printf("CMS: Failed to open \"%s\" file not found!\n", filePath);
         return 0;
     }
 
@@ -1441,7 +1441,7 @@ int main(void) {
         // ============================= UNKNOWN =============================
         else {
 
-            printf("Unknown command.\n");
+            printf("Unknown command. Type HELP to display available commands.\n");
         }
     }
 
