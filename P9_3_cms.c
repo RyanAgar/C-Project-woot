@@ -6,55 +6,57 @@
   Log File: P9_3-CMS.log
 */
 
-#include <stdio.h>     // Standard input/output: printf, fgets, fopen, etc.
-#include <stdlib.h>    // General utilities: malloc, free, atoi, atof, exit
-#include <string.h>    // String handling: strcpy, strcmp, strlen, strtok
-#include <time.h>      // Time functions: time, localtime, strftime
-#include <ctype.h>     // Character checks: isdigit, toupper, tolower
-#include <stdarg.h>    // Variable arguments: va_list, va_start, va_end
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <ctype.h>
+#include <stdarg.h>
 
-#define MAX_STR 128       // Maximum length for strings (e.g. name, programme)
-#define INIT_CAP 16       // Initial capacity for student array (used in dynamic resizing)
-#define LOGFILE "P9_3-CMS.log"  // Filename for audit logging
-#define FILENAME "P9_3-CMS.txt" // Fixed filename for student record database
+//ANSI color codes
+#define RESET "\033[0m"
+#define RED "\033[31m"
+#define GREEN "\033[32m"
+#define YELLOW "\033[33m"
+#define CYAN "\033[36m"
+#define BOLD "\033[1m"
 
-// ANSI color codes
-#define RESET   "\033[0m"
-#define RED     "\033[31m"
-#define GREEN   "\033[32m"
-#define YELLOW  "\033[33m"
-#define CYAN    "\033[36m"
-#define BOLD    "\033[1m"
+#define MAX_STR 128 //Maximum length for strings (e.g. name, programme)
+#define INIT_CAP 16 //Initial capacity for student array (can be resized)
+#define LOGFILE "P9_3-CMS.log" //Default Filename for audit log
+#define FILENAME "P9_3-CMS.txt" //Default Filename for student record database
+static const char* CURRENT_USER = "P9_3-Admin"; //For audit logging (current user)
 
-int query_exists(int id);  // Checks if a student with the given ID already exists
 
-// Static variable to hold the "current user" for logging
-static const char* CURRENT_USER = "P9_3-Admin"; // You can place this just before audit_log
-
-// Structure to store student record
+//Student Object
 typedef struct {
-    int id;                         // Unique student ID
-    char name[MAX_STR];            // Student's name
-    char programme[MAX_STR];       // Programme enrolled
-    float mark;                    // Final mark
+    int id;                  //Student ID (must be unique)
+    char name[MAX_STR];      //Student's Name
+    char programme[MAX_STR]; //Programme enrolled
+    float mark;              //Final marks
 } Student;
 
-// Enum to represent the type of last operation (for undo)
-typedef enum {OP_NONE, OP_INSERT, OP_DELETE, OP_UPDATE} OpType;
+Student *arr = NULL; //Student Object Array
+size_t arr_size = 0; //Student record number tracker
+size_t arr_cap = 0; //Array capacity tracker
 
-// Structure to store undo information
+
+//Last Operation EnumType (for undo)
+typedef enum {
+    OP_NONE,   //No operation
+    OP_INSERT, //Insert operation
+    OP_DELETE, //Delete operation
+    OP_UPDATE  //Update operation
+} OpType;
+
+//Undo Object
 typedef struct {
-    OpType op;                     // Type of last operation
-    Student before;               // Record before change
-    Student after;                // Record after change
+    OpType op;      //Type of last operation
+    Student before; //Student record before change
+    Student after;  //Student record after change
 } UndoRecord;
+UndoRecord last_op = {OP_NONE}; //Initialise last_op
 
-// Dynamic array to store student records
-Student *arr = NULL;              // Pointer to student array
-size_t arr_size = 0;              // Current number of records
-size_t arr_cap = 0;               // Current capacity of array
-
-UndoRecord last_op = {OP_NONE};  // Stores last operation for undo
 
 /* ---------------------------------------------------- */
 /* Utility Functions                                    */
@@ -63,23 +65,16 @@ UndoRecord last_op = {OP_NONE};  // Stores last operation for undo
 // -----------------------------------------------------------------------------
 // FUNCTION: query_exists
 // PURPOSE : Checks if a given student ID is already present in the array.
-// RETURNS : 1  → ID found
-//           0  → ID not found
+// RETURNS : 1 -> ID found
+//           0 -> ID not found
 // -----------------------------------------------------------------------------
-int query_exists(int id) {  // Student ID Check
-
-    // Loop through all currently loaded student records.
-    for (size_t i = 0; i < arr_size; i++) {
-
-        // Compare each record's ID with the target ID.
-        // If a match is found, return 1 immediately.
+int query_exists(int id) {
+    for (size_t i = 0; i < arr_size; i++){
         if (arr[i].id == id) {
-            return 1; // found
+            return 1; //ID matched
         }
     }
-
-    // If the loop completes with no match, return 0 to indicate "not found".
-    return 0;
+    return 0; //ID not found
 }
 
 // -----------------------------------------------------------------------------
@@ -88,198 +83,149 @@ int query_exists(int id) {  // Student ID Check
 //           - timestamp
 //           - username
 //           - current record count
-//           - custom formatted log message
+//           - custom log message
 // ACCEPTS : printf-style format string + variable arguments (...)
 // -----------------------------------------------------------------------------
-void audit_log(const char *fmt, ...) {
+void audit_log(const char *formatString, ...) {
+    FILE *logFilePointer = fopen(LOGFILE, "a"); //append mode
 
-    // Open the log file in append mode so new entries go to the bottom.
-    FILE *f = fopen(LOGFILE, "a");
-
-    // If the log file cannot be opened, print an error and return.
-    if (!f) {
-        printf(RED "CMS Error: Failed to open or write to audit log file \"%s\"." RESET "\n",
-               LOGFILE);
+    if (!logFilePointer) { //NULL file
+        printf(RED "CMS Error: Failed to open or write to audit log file \"%s\"." RESET "\n", LOGFILE);
         return;
     }
 
-    // -------- 1. Generate the current timestamp --------
-    time_t t = time(NULL);       // Get current time (raw format)
-    struct tm *tm = localtime(&t); // Convert to local timezone
-    char ts[32];
-    strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", tm);  // Format as readable text
+    //Generate Current Timestamp
+    time_t currentRawTime = time(NULL); //Current time (unix epoch)
+    struct tm *tm = localtime(&currentRawTime); //Convert to local timezone
+    char timeStamp[32];
+    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d %H:%M:%S", tm); //Readable format
 
-    // -------- 2. Write metadata prefix into the log --------
-    // Example:
-    // [2025-02-01 10:12:34] [P9_3-Admin] (Records: 12)
-    fprintf(f, "[%s] [%s] (Records: %zu) ", ts, CURRENT_USER, arr_size);
+    //Log prefix
+    //Example:
+    //[2025-02-01 10:12:34] [P9_3-Admin] (Records: 12)
+    fprintf(logFilePointer, "[%s] [%s] (Records: %zu) ", timeStamp, CURRENT_USER, arr_size);
 
-    // -------- 3. Handle the variable arguments --------
-    va_list ap;
-    va_start(ap, fmt);     // Start reading variable arguments
-    vfprintf(f, fmt, ap);  // Write the formatted message into log
-    va_end(ap);            // Finish reading arguments
+    //Handle variable arguments
+    va_list argList;
+    va_start(argList, formatString);
+    vfprintf(logFilePointer, formatString, argList);  //Append formatted message into audit log
+    fprintf(logFilePointer, "\n");
+    va_end(argList);
 
-    // -------- 4. Finalize entry --------
-    fprintf(f, "\n");  // Add newline so next log entry starts on its own line
-    fclose(f);         // Close file to ensure data is written
+    fclose(logFilePointer); //Close file
 }
-
 
 // -----------------------------------------------------------------------------
 // FUNCTION: ensure_cap
-// PURPOSE : Ensures that the student array has enough capacity to store
-//           new records. If full, it doubles the memory size.
+// PURPOSE : Ensures student array has enough memory capacity to store new records
 // -----------------------------------------------------------------------------
 void ensure_cap() {
-
-    // If capacity is 0 (program just started), allocate the initial buffer.
+    //Allocate initial buffer
     if (arr_cap == 0) {
-        arr_cap = INIT_CAP;        // Default starting size (e.g., 16)
-        arr = malloc(arr_cap * sizeof(Student));  // Allocate storage
+        arr_cap = INIT_CAP;
+        arr = malloc(arr_cap * sizeof(Student));
     }
-    // If the array is full (size == capacity), expand it.
+    // If student array is full (size >= capacity), expand capacity
     else if (arr_size >= arr_cap) {
-        arr_cap *= 2;              // Double capacity (classic dynamic array growth)
-        arr = realloc(arr, arr_cap * sizeof(Student));  // Reallocate memory
+        arr_cap *= 2; //Double capacity
+        arr = realloc(arr, arr_cap * sizeof(Student)); //Reallocate memory
     }
 }
-
 
 // -----------------------------------------------------------------------------
 // FUNCTION: find_index_by_id
 // PURPOSE : Searches the array for a matching student ID.
-// RETURNS : index (0..arr_size-1) → if found
-//           -1                   → if not found
+// RETURNS : index (0..arr_size-1) -> if found
+//           -1 -> if not found
 // -----------------------------------------------------------------------------
 int find_index_by_id(int id) {
-
-    // Iterate through each student in the array.
     for (size_t i = 0; i < arr_size; i++) {
-
-        // Compare target ID with this student's ID.
-        if (arr[i].id == id)
-            return (int)i;   // Return the matching index
+        if (arr[i].id == id) //compare student ID
+            return (int)i;   //return matching index
     }
 
-    // No match found after scanning the entire array.
-    return -1;
+    return -1; //if no match found
 }
 
 
 // -----------------------------------------------------------------------------
 // FUNCTION: print_student_record
 // PURPOSE : Displays a single student's details in a formatted table row.
-//           Also applies color based on student's mark:
-//             ≥ 80 → GREEN (excellent)
-//             < 50 → RED   (failing)
-//             else → YELLOW (average)
+//           Different colour output based on student's mark:
+//           - RED(50) < YELLOW < GREEN(80)
+//           - Excellent Grade: 80 and above
+//           - Average Grade: between 50 and 80
+//           - Failing Grade: below 50
+// ACCEPTS : Student Object
 // -----------------------------------------------------------------------------
-void print_student_record(const Student *s) {
+void print_student_record(const Student *currentStudent) {
+    const char *colour = RESET; //Default Colour: White
 
-    // Default color is RESET (white)
-    const char *color = RESET;
-
-    // Decide the color based on the student's mark.
-    if (s->mark >= 80) {
-        color = GREEN;    // excellent
+    if (currentStudent->mark >= 80) { //excellent
+        colour = GREEN;
     }
-    else if (s->mark < 50) {
-        color = RED;      // failing
+    else if (currentStudent->mark < 50) { //failing
+        colour = RED;
     }
-    else {
-        color = YELLOW;   // average
+    else { //average
+        colour = YELLOW;
     }
 
-    // Print data in aligned columns, with the mark displayed in selected color.
+    //Print data in aligned columns
     printf("%-10d %-20s %-30s %s%-6.1f%s\n",
-           s->id,
-           s->name,
-           s->programme,
-           color, s->mark, RESET);
+           currentStudent->id,
+           currentStudent->name,
+           currentStudent->programme,
+           colour, currentStudent->mark, RESET);
 }
-
 
 // -----------------------------------------------------------------------------
 // FUNCTION: parse_line
 // PURPOSE : Reads a line from the database file (.txt) and extracts:
-//           - ID (tokens[0])
+//           - Student ID (tokens[0])
 //           - First name + Last name (tokens[1] + tokens[2])
-//           - Programme (tokens[3] ... tokens[n-2])
+//           - Programme (tokens[3] + ... + tokens[n-2])
 //           - Mark (tokens[n-1])
-//
-// NOTE    : The function supports any amount of spacing or tabs between fields.
-// RETURNS : 1 → successful parse
-//           0 → line does not contain enough data
+// RETURNS : 1 -> successful parse into studentObject
+//           0 -> line does not contain enough data
 // -----------------------------------------------------------------------------
-int parse_line(const char *line, Student *s) {
+int parse_line(const char *line, Student *studentObject) {
+    char tempBuf[512]; //temporary buffer to store line for edit
+    strncpy(tempBuf, line, sizeof(tempBuf) - 1);
+    tempBuf[sizeof(tempBuf) - 1] = '\0'; //Null terminate Buffer
+    tempBuf[strcspn(tempBuf, "\n")] = '\0'; //replace newline
 
-    // Create a local buffer so we can safely modify the string.
-    char buf[512];
-    strncpy(buf, line, sizeof(buf) - 1);
-    buf[sizeof(buf) - 1] = '\0';   // Make sure buffer is null-terminated.
+    //Split buffer into tokens by space and tabs
+    char *tokens[64]; //64 character pointers
+    int tokenCount = 0;
 
-    // Remove any newline characters at the end of the line.
-    buf[strcspn(buf, "\r\n")] = 0;
-
-    // ---------------------------------------------------------
-    // Tokenize by whitespace (both TAB and SPACE).
-    // Example split:
-    //    1001  John  Tan   Computer Science   88.5
-    // ---------------------------------------------------------
-    char *tokens[64];
-    int count = 0;
-
-    // Get first token.
-    char *p = strtok(buf, " \t");
-
-    // Extract tokens until we reach NULL or max token count.
-    while (p && count < 64) {
-        tokens[count++] = p;             // Store the token pointer
-        p = strtok(NULL, " \t");         // Move to next token
+    char *currentToken = strtok(tempBuf, " \t"); //First token
+    while (currentToken != NULL && tokenCount < 64) { //store tokens until NULL or count reaches 64
+        tokens[tokenCount] = currentToken;
+        tokenCount++;
+        currentToken = strtok(NULL, " \t"); //Continue searching for next token
     }
 
-    // At minimum we expect:
-    // ID | FirstName | LastName | Programme | Mark
-    if (count < 4) return 0;
+    if (tokenCount < 4) return 0; //must have 5 properties in Student Object, if not -> exit
 
-    // ----------------------
-    // 1. Parse student ID
-    // ----------------------
-    s->id = atoi(tokens[0]);   // Convert first token to integer
+    studentObject->id = atoi(tokens[0]); //convert integer id
+    studentObject->mark = atof(tokens[tokenCount - 1]); //convert float marks
 
-    // ----------------------
-    // 2. Parse final mark
-    // ----------------------
-    s->mark = atof(tokens[count - 1]);   // Convert last token to float
+    char nameBuffer[128] = "";
+    snprintf(nameBuffer, sizeof(nameBuffer), "%s %s", tokens[1], tokens[2]); //combine first and last name
+    strncpy(studentObject->name, nameBuffer, MAX_STR - 1);
+    studentObject->name[MAX_STR - 1] = '\0'; //Null terminate name
 
-    // ----------------------
-    // 3. Parse name (first + last)
-    // ----------------------
-    char namebuf[128] = "";
-    snprintf(namebuf, sizeof(namebuf), "%s %s", tokens[1], tokens[2]);
-    strncpy(s->name, namebuf, MAX_STR - 1);
-    s->name[MAX_STR - 1] = '\0';    // Safety null-termination
-
-    // ----------------------
-    // 4. Parse programme name
-    // (everything between last name and mark)
-    // ----------------------
-    char progbuf[256] = "";
-    for (int i = 3; i < count - 1; i++) {
-
-        // Append each token to programme buffer
-        strcat(progbuf, tokens[i]);
-
-        // Add space between programme words, except for last word
-        if (i < count - 2)
-            strcat(progbuf, " ");
+    char programmeBuffer[256] = "";
+    for (int i = 3; i < tokenCount - 1; i++) {
+        strcat(programmeBuffer, tokens[i]); //append token to buffer
+        if (i < tokenCount - 2) //append space, but not for last word
+            strcat(programmeBuffer, " "); 
     }
+    strncpy(studentObject->programme, programmeBuffer, MAX_STR - 1);
+    studentObject->programme[MAX_STR - 1] = '\0';
 
-    strncpy(s->programme, progbuf, MAX_STR - 1);
-    s->programme[MAX_STR - 1] = '\0';
-
-    return 1;   // Successful parsing
+    return 1;
 }
 
 
@@ -289,18 +235,19 @@ int parse_line(const char *line, Student *s) {
 
 // -----------------------------------------------------------------------------
 // FUNCTION: trim_newline
-// PURPOSE : Removes trailing '\n' or '\r' left by fgets(). This helps
-//           clean user input.
+// PURPOSE : Removes trailing '\n' or '\r' for string pointer
 // -----------------------------------------------------------------------------
-static void trim_newline(char *s) {
+static void trim_newline(char *string) {
 
-    if (!s) return;    // Safety: ignore NULL pointer
+    if (string == NULL) return; 
 
-    size_t n = strlen(s);
+    size_t stringLength = strlen(string);
 
-    // Remove newline and carriage-return characters from the end.
-    while (n && (s[n-1] == '\n' || s[n-1] == '\r'))
-        s[--n] = '\0';
+    while (stringLength != 0 && (string[stringLength-1] == '\n' || string[stringLength-1] == '\r'))
+    {
+        stringLength--;
+        string[stringLength] = '\0';
+    }
 }
 
 
