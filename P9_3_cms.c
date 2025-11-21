@@ -208,14 +208,29 @@ int parse_line(const char *line, Student *studentObject) {
 
     if (tokenCount < 4) return 0; //must have 5 properties in Student Object, if not -> exit
 
-    studentObject->id = atoi(tokens[0]); //convert integer id
-    studentObject->mark = atof(tokens[tokenCount - 1]); //convert float marks
+    //Store ID into studentObject
+    char *endPtr;
+    long parsedId = strtol(tokens[0], &endPtr, 10);
+    if (endPtr == tokens[0] || *endPtr != '\0' || parsedId < 0 || parsedId > INT_MAX) {
+        return 0; //Invalid ID: checks nochange, non-numeric, negative, overflow
+    }
+    studentObject->id = (int)parsedId;
 
+    //Store marks into studentObject
+    char *endPtr2;
+    float parsedMark = strtof(tokens[tokenCount - 1], &endPtr2);
+    if (endPtr2 == tokens[tokenCount - 1] || *endPtr2 != '\0' || parsedMark < 0.0f || parsedMark > 100.0f) {
+        return 0; //Invalid marks: checks nochange, non-numeric, out of range
+    }
+    studentObject->mark = parsedMark;
+
+    //Store name into studentObject
     char nameBuffer[128] = "";
     snprintf(nameBuffer, sizeof(nameBuffer), "%s %s", tokens[1], tokens[2]); //combine first and last name
     strncpy(studentObject->name, nameBuffer, MAX_STR - 1);
     studentObject->name[MAX_STR - 1] = '\0'; //Null terminate name
 
+    //Store programme into studentObject
     char programmeBuffer[256] = "";
     for (int i = 3; i < tokenCount - 1; i++) {
         strcat(programmeBuffer, tokens[i]); //append token to buffer
@@ -434,6 +449,9 @@ int open_db(const char *filePath) {
             //Store into student array
             arr[arr_size] = currentStudent;
             arr_size++;
+        } else { //parse_line returned 0
+            //Invalid line format, skip
+            printf(YELLOW "CMS Warning: Skipping invalid line %d in file.\n" RESET, lineNumber);
         }
     }
 
