@@ -412,24 +412,26 @@ int open_db(const char *filePath) {
     FILE *filePtr;
     filePtr = fopen(filePath, "r"); //open file in read mode
 
-    if (filePtr == NULL) { //file not found or cannot be opened.
-        printf("CMS: Failed to open \"%s\" file not found!\n", filePath);
-        return 0;
-    }
-
     int filePathLength = strlen(filePath);
     if (filePathLength <= 4) { //Check for non *.txt
         printf("CMS: File is not a txt file.\n");
         return 0;
     }
     if (!(filePath[filePathLength - 1] == 't' && //check extension
-          filePath[filePathLength - 2] == 'x' &&
-          filePath[filePathLength - 3] == 't' &&
-          filePath[filePathLength - 4] == '.')) 
+        filePath[filePathLength - 2] == 'x' &&
+        filePath[filePathLength - 3] == 't' &&
+        filePath[filePathLength - 4] == '.'))
     {
         printf("CMS: File is not a txt file.\n");
         return 0;
     }
+
+    if (filePtr == NULL) { //file not found or cannot be opened.
+        printf("CMS: Failed to open \"%s\" file not found!\n", filePath);
+        return 0;
+    }
+
+    
 
     arr_size = 0; //Reset Student array length
     char currentFileLine[512];
@@ -1193,6 +1195,19 @@ int main(void) {
                 continue;
             }
             userBuffer[strcspn(userBuffer, "\n")] = '\0'; //Trim newline
+
+            int onlyDigits = 1;
+            for (int i = 0; userBuffer[i] != '\0'; i++) {
+                if (!isdigit((unsigned char)userBuffer[i])) {
+                    onlyDigits = 0;
+                    break;
+                }
+            }
+            if (!onlyDigits) {
+                printf("CMS Error: ID must contain digits only.\n");
+                continue;
+            }
+
             //Cast ID(string) to int
             char *endPtr;
             long studentID = strtol(userBuffer, &endPtr, 10);
@@ -1243,6 +1258,19 @@ int main(void) {
                 continue;
             }
             userBuffer[strcspn(userBuffer, "\n")] = '\0'; //Trim newline
+
+            int haveLetters = 1;
+            for (int i = 0; userBuffer[i] != '\0'; i++) {
+                if (isalpha((unsigned char)userBuffer[i])) {
+                    haveLetters = 0;
+                    break;
+                }
+            }
+            if (!haveLetters) {
+                printf("CMS Error: Mark cannot contain alphabets.\n");
+                continue;
+            }
+
             //Cast Marks(string) to float
             char *endPtr2;
             float studentMarks = strtof(userBuffer, &endPtr2);
