@@ -3,8 +3,9 @@ Authors: Ryan, Glenn, Min Han, Jordan, Ben
 Table Name: StudentRecords
 
 ID         Name            Programme                 Mark  
-2301234    Joshua Lim      Software Engineering      71.5  
-2201234    Isaac Teo       Computer Science          63.4  
-2304567    John Levoy      Digital Supply Chain      85.9  
-1234567    Ben Doper       Information Security      69.7  
 7654321    Harry Pitts     Artificial Intelligence   40.0  
+1234568    Harper David    Business                  55.0  
+2201234    Isaac Teo       Computer Science          63.4  
+1234567    Ben Doper       Information Security      69.7  
+2301234    Joshua Lim      Software Engineering      71.5  
+2304567    John Levoy      Digital Supply Chain      85.9  

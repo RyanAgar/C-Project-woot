@@ -145,6 +145,21 @@ void ensure_cap() {
     }
 }
 
+// -----------------------------------------------------------------------------
+// FUNCTION: discard_rest_of_line
+// PURPOSE : Discards any remaining characters in the input buffer
+//          until a newline or EOF is encountered.
+// BEHAVIOR: Used to handle overly long user input.
+// -----------------------------------------------------------------------------
+
+static void discard_rest_of_line(void)
+{
+    int ch;
+    while ((ch = getchar()) != '\n' && ch != EOF) {
+        // just throw characters away
+    }
+}
+
 
 // -----------------------------------------------------------------------------
 // FUNCTION: find_index_by_id
@@ -401,6 +416,60 @@ static int prompt_edit_mark(float *out, float current)
     return 1;
 }
 
+// -----------------------------------------------------------------------------
+// FUNCTION: is_all_digits
+// PURPOSE : Checks if a string consists entirely of digit characters.
+// RETURNS : 1 → all characters are digits
+//           0 → contains non-digit characters or is empty
+// -----------------------------------------------------------------------------
+static int is_all_digits(const char *s)
+{
+    if (!s || !*s) return 0;
+
+    for (const char *p = s; *p; ++p) {
+        if (!isdigit((unsigned char)*p)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// -----------------------------------------------------------------------------
+// FUNCTION: parse_exact_id_arg
+// PURPOSE : For DELETE / UPDATE where we require an exact 7-digit ID.
+//           - Must be all digits
+//           - Must be length 7
+// RETURNS : 1 on success, 0 on invalid input
+// -----------------------------------------------------------------------------
+static int parse_exact_id_arg(const char *arg, int *out_id)
+{
+    if (!arg || !*arg) {
+        printf("Enter a valid 7-digit ID.\n");
+        return 0;
+    }
+
+    // Check all digits
+    const char *p = arg;
+    int len = 0;
+    while (*p) {
+        if (!isdigit((unsigned char)*p)) {
+            printf(RED "Not a valid ID.\n" RESET);
+            return 0;
+        }
+        len++;
+        p++;
+    }
+
+    // Enforce exactly 7 digits
+    if (len != 7) {
+        printf("Enter a valid 7-digit ID.\n");
+        return 0;
+    }
+
+    *out_id = atoi(arg);
+    return 1;
+}
+
 
 // -----------------------------------------------------------------------------
 // FUNCTION: confirm_delete_by_id
@@ -442,6 +511,145 @@ static int confirm_delete_by_id(int expected_id)
     return (v == expected_id);
 }
 
+// -----------------------------------------------------------------------------
+// FUNCTION: read_valid_id
+// PURPOSE : Prompts user to enter a valid 7-digit student ID.
+// RETURNS: positive ID on success, -1 on EOF
+// -----------------------------------------------------------------------------
+static int read_valid_id(void)
+{
+    char buf[256];
+
+    while (1) {
+        printf("ID: ");
+        if (!fgets(buf, sizeof(buf), stdin)) {
+            // Input stream closed (EOF)
+            return -1;
+        }
+
+        trim_newline(buf);
+
+        // Skip leading spaces
+        char *p = buf;
+        while (*p && isspace((unsigned char)*p)) {
+            p++;
+        }
+
+        // Empty input
+        if (*p == '\0') {
+            printf(RED "Invalid ID. Please enter an ID with 7 digits.\n" RESET);
+            continue;
+        }
+
+        // Check all characters are digits and length is exactly 7
+        int len = 0;
+        int allDigits = 1;
+        for (; p[len]; len++) {
+            if (!isdigit((unsigned char)p[len])) {
+                allDigits = 0;
+                break;
+            }
+        }
+
+        if (!allDigits || len != 7) {
+            printf(RED "Invalid ID. Please enter an ID with 7 digits.\n" RESET);
+            continue;
+        }
+
+        int id = atoi(p);
+
+        // Check duplicate
+        if (query_exists(id)) {
+            printf(RED "Error: Student with ID %d already exists.\n" RESET, id);
+            continue;
+        }
+
+        return id;
+    }
+}
+
+// -----------------------------------------------------------------------------
+// FUNCTION: read_nonempty_field (Name / Programme)
+// PURPOSE: Prompts user to enter a non-empty string for the given label.
+// RETURNS: 1 on success, 0 on EOF
+// -----------------------------------------------------------------------------
+static int read_nonempty_field(const char *label, char *out, size_t cap)
+{
+    char buf[256];
+
+    while (1) {
+        printf("%s: ", label);
+        if (!fgets(buf, sizeof(buf), stdin)) {
+            return 0;   // EOF
+        }
+
+        // Check if the input line was longer than our buffer
+        size_t len_buf = strlen(buf);
+        if (len_buf > 0 && buf[len_buf - 1] != '\n') {
+            // Input too long, discard rest of line
+            discard_rest_of_line();
+        }
+
+        trim_newline(buf);
+
+        // Skip leading spaces
+        char *p = buf;
+        while (*p && isspace((unsigned char)*p)) {
+            p++;
+        }
+
+        if (*p == '\0') {
+            printf(RED "Invalid %s. Please enter a valid %s.\n" RESET, label, label);
+            continue;
+        }
+
+        // If input is longer than our destination buffer, truncate and warn
+        if (strlen(p) >= cap) {
+            printf(YELLOW "%s is too long, it will be truncated to %zu characters.\n" RESET,
+                   label, cap - 1);
+        }
+
+        strncpy(out, p, cap - 1);
+        out[cap - 1] = '\0';
+        return 1;
+    }
+}
+
+// -----------------------------------------------------------------------------
+// FUNCTION: read_valid_mark (0 to 100, non-empty)
+// PURPOSE: Prompts user to enter a valid mark between 0 and 100.
+// RETURNS: mark value on success, -1.0f on EOF
+// -----------------------------------------------------------------------------
+static float read_valid_mark(void)
+{
+    char buf[128];
+
+    while (1) {
+        printf("Mark: ");
+        if (!fgets(buf, sizeof(buf), stdin)) {
+            return -1.0f;  // EOF
+        }
+
+        trim_newline(buf);
+
+        // Empty input
+        if (buf[0] == '\0') {
+            printf(RED "Invalid Mark. Please enter a number from 0 to 100.\n" RESET);
+            continue;
+        }
+
+        char *endp = NULL;
+        double mv = strtod(buf, &endp);
+
+        // Invalid number or extra characters or out of range
+        if (endp == buf || *endp != '\0' || mv < 0.0 || mv > 100.0) {
+            printf(RED "Invalid Mark. Please enter a number from 0 to 100.\n" RESET);
+            continue;
+        }
+
+        return (float)mv;
+    }
+}
 
 
 /* ---------------------------------------------------- */
@@ -742,6 +950,55 @@ void query(int id) {
            arr[i].programme,
            color, arr[i].mark, RESET);
 }
+
+// -----------------------------------------------------------------------------
+// FUNCTION: query_prefix
+// PURPOSE : Lists all records whose ID starts with the given digit prefix.
+// INPUT   : prefix - a string of 4–6 digits
+// -----------------------------------------------------------------------------
+void query_prefix(const char *prefix)
+{
+    if (arr_size == 0) {
+        printf("CMS: No records loaded. Use OPEN <filename> first.\n");
+        return;
+    }
+
+    size_t prefix_len = strlen(prefix);
+    int found = 0;
+
+    // Header
+    printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET,
+           "ID", "Name", "Programme", "Mark");
+
+    for (size_t i = 0; i < arr_size; ++i) {
+        char idbuf[32];
+        snprintf(idbuf, sizeof(idbuf), "%d", arr[i].id);
+
+        if (strncmp(idbuf, prefix, prefix_len) == 0) {
+            // Colour logic same as show_all()
+            const char *color = RESET;
+            if (arr[i].mark >= 80)
+                color = GREEN;
+            else if (arr[i].mark < 50)
+                color = RED;
+            else
+                color = YELLOW;
+
+            printf("%-10d %-20s %-30s %s%-6.1f%s\n",
+                   arr[i].id,
+                   arr[i].name,
+                   arr[i].programme,
+                   color, arr[i].mark, RESET);
+
+            found = 1;
+        }
+    }
+
+    if (!found) {
+        printf("CMS: No records found with ID starting with %s.\n", prefix);
+    }
+}
+
 
 
 // -----------------------------------------------------------------------------
@@ -1329,55 +1586,75 @@ int main(void) {
         // ============================= INSERT =============================
         else if (strcasecmp(command, "INSERT") == 0) {
 
-            Student s;
-            char buf[256];
+        Student s;
 
-            // Prompt user for new record fields, one-by-one
-
-            // ID
-            printf("ID: ");
-            if (!fgets(buf, sizeof(buf), stdin)) continue;
-            s.id = atoi(buf);
-
-            // Check if ID already exists
-            if (query_exists(s.id)) {
-                printf("Error: Student with ID %d already exists.\n", s.id);
-                continue;
-            }
-
-            // Name
-            printf("Name: ");
-            fgets(buf, sizeof(buf), stdin);
-            strtok(buf, "\n");
-            strncpy(s.name, buf, MAX_STR - 1);
-
-            // Programme
-            printf("Programme: ");
-            fgets(buf, sizeof(buf), stdin);
-            strtok(buf, "\n");
-            strncpy(s.programme, buf, MAX_STR - 1);
-
-            // Mark
-            printf("Mark: ");
-            fgets(buf, sizeof(buf), stdin);
-            s.mark = atof(buf);
-
-            // Insert record into array
-            insert_record(s);
+        // Guard: make sure DB is opened (if you added db_opened flag earlier)
+        // If you did not add db_opened, you can keep your existing guard logic.
+        if (arr_size == 0) {
+            printf("CMS: No records loaded. Use OPEN <filename> first.\n");
+            continue;
         }
+
+        // --- ID: must be 7 digits and unique ---
+        s.id = read_valid_id();
+        if (s.id < 0) {
+            // EOF / input error
+            continue;
+        }
+
+        // --- Name: must not be empty ---
+        if (!read_nonempty_field("Name", s.name, MAX_STR)) {
+            continue;   // EOF
+        }
+
+        // --- Programme: must not be empty ---
+        if (!read_nonempty_field("Programme", s.programme, MAX_STR)) {
+            continue;   // EOF
+        }
+
+        // --- Mark: must be numeric 0–100 and not empty ---
+        s.mark = read_valid_mark();
+        if (s.mark < 0.0f) {
+            continue;   // EOF
+        }
+
+        // Insert record into array (insert_record still logs + sets undo)
+        insert_record(s);
+    }
 
         // ============================= QUERY =============================
         else if (strcasecmp(command, "QUERY") == 0) {
 
-            if (n >= 2) {
-                int id = atoi(arg1);
+        if (n >= 2) {
+            const char *q = arg1;
+            size_t len = strlen(q);
+
+            // Must be all digits
+            if (!is_all_digits(q)) {
+                printf("Enter at least 4 digits for ID search.\n");
+                continue;
+            }
+
+            // Too short
+            if (len < 4) {
+                printf("Enter at least 4 digits for ID search.\n");
+                continue;
+            }
+
+            // Full 7-digit ID -> exact match
+            if (len == 7) {
+                int id = atoi(q);
                 query(id);
             }
             else {
-                printf("Usage: QUERY <ID>\n");
+                // 4–6 digits -> prefix search
+                query_prefix(q);
             }
         }
-
+        else {
+            printf("Usage: QUERY <ID>\n");
+        }
+    }
         // ============================= UPDATE =============================
         else if (strcasecmp(command, "UPDATE") == 0) {
 
@@ -1394,7 +1671,14 @@ int main(void) {
         else if (strcasecmp(command, "DELETE") == 0) {
 
             if (n >= 2) {
-                int id = atoi(arg1);
+                int id;
+
+                // Require exactly 7 numeric digits
+                if (!parse_exact_id_arg(arg1, &id)) {
+                    // Invalid input, message already printed
+                    continue;
+                }
+
                 delete(id);
             }
             else {
