@@ -229,9 +229,9 @@ int parse_line(const char *line, Student *studentObject) {
 }
 
 
-/* ------------------------------ */
-/*  Helpers for update/ delete    */
-/* ------------------------------ */
+/* --------------------------------------------------- */
+/*  Helper functions for update & delete operations    */
+/* --------------------------------------------------- */
 
 // -----------------------------------------------------------------------------
 // FUNCTION: trim_newline
@@ -250,143 +250,127 @@ static void trim_newline(char *string) {
     }
 }
 
-
 // -----------------------------------------------------------------------------
 // FUNCTION: print_diff_row
-// PURPOSE : Shows a side-by-side comparison of BEFORE vs AFTER values
+// PURPOSE : Shows a side-by-side comparison of BEFORE vs AFTER values 
 //           for a single field, highlighting changed fields in GREEN.
 // -----------------------------------------------------------------------------
-static void print_diff_row(const char *label,
-                           const char *before,
-                           const char *after)
+static void print_diff_row(const char *label, const char *before, const char *after)
 {
-    // Determine if this field actually changed.
-    int changed = strcmp(before, after) != 0;
+    int isChanged = strcmp(before, after) != 0;
 
-    // Print:
-    // Field | BeforeValue | AfterValue (colored if changed)
+    //Print:
+    //Field | BeforeValue | AfterValue (coloured if changed)
     printf("%-12s | %-30s | %s%-30s%s\n",
            label,
            before,
-           changed ? GREEN : RESET,   // Color AFTER value if changed
+           isChanged ? GREEN : RESET,   //Colour AFTER value if changed
            after,
-           changed ? RESET : RESET);
+           isChanged ? RESET : RESET);
 }
-
 
 // -----------------------------------------------------------------------------
 // FUNCTION: prompt_edit_str
 // PURPOSE : Asks the user whether they want to edit a field's string value.
-// BEHAVIOR: Press ENTER → keep old value
-// RETURNS : 1 → value changed
-//           0 → kept old value
+// USE     : Press ENTER -> keep old value
+// RETURNS : 1 -> value changed
+//           0 -> kept old value
 // -----------------------------------------------------------------------------
-static int prompt_edit_str(const char *label,
-                           char *dst,
-                           size_t cap,
-                           const char *current)
+static int prompt_edit_str(const char *fieldLabel, char *stringDestination, size_t cap, const char *current)
 {
-    char buf[256];
+    char userBuffer[256];
 
-    // Ask user, showing current value inside quotes
-    printf("%s (Enter to keep \"%s\"): ", label, current);
+    printf("%s (Enter to keep \"%s\"): ", fieldLabel, current); //ask user
 
-    // Try reading user input
-    if (!fgets(buf, sizeof(buf), stdin)) {
-        buf[0] = '\0';   // If read failed, treat as "no change"
+    //User Input
+    if (!fgets(userBuffer, sizeof(userBuffer), stdin)) { //If read fails(etc interrupts) -> no change
+        return 0;
     }
 
-    // If user pressed ENTER immediately, keep original
-    if (buf[0] == '\n')
-        return 0;  // no change
+    if (userBuffer[0] == '\n') //User presses enter -> no change
+        return 0;
 
-    // Otherwise, trim newline and copy new value into dst
-    trim_newline(buf);
-    strncpy(dst, buf, cap - 1);
-    dst[cap - 1] = '\0';
+    trim_newline(userBuffer);
+    strncpy(stringDestination, userBuffer, cap - 1);
+    stringDestination[cap - 1] = '\0';
 
-    return 1;  // changed
+    return 1;
 }
 
 
 // -----------------------------------------------------------------------------
 // FUNCTION: prompt_edit_mark
-// PURPOSE : Allows user to update a student's mark, with validation.
-// BEHAVIOR: ENTER → keep old mark
-//           Otherwise must enter a valid number between 0 and 100.
-// RETURNS : 1 → mark changed
-//           0 → kept same mark
+// PURPOSE : Allows the user to update a student's mark, with validation.
+// USE     : Press ENTER -> keep old mark
+//           Otherwise, must enter a valid number between 0 and 100.
+// RETURNS : 1 -> marks changed
+//           0 -> kept old marks
 // -----------------------------------------------------------------------------
-static int prompt_edit_mark(float *out, float current)
+static int prompt_edit_mark(float *outputMark, float currentMark)
 {
-    char buf[128];
+    char userBuffer[128];
 
-    printf("Mark (Enter to keep %.1f): ", current);
+    printf("Mark (Enter to keep %.1f): ", currentMark);
 
-    // If user presses ENTER → keep original
-    if (!fgets(buf, sizeof(buf), stdin) || buf[0] == '\n')
+    if (!fgets(userBuffer, sizeof(userBuffer), stdin) || userBuffer[0] == '\n') //User presses enter -> no change
+    {
         return 0;
-
-    trim_newline(buf);
-
-    // Convert input to number
-    char *endp = NULL;
-    double mv = strtod(buf, &endp);
-
-    // Validate input:
-    // strtod fails if endp == buf OR endp has extra invalid chars
-    // Also ensure number is between 0 and 100
-    if (endp == buf || *endp != '\0' || mv < 0.0 || mv > 100.0) {
-
-        // Error message with recursive retry
-        printf(RED "Invalid mark. Please enter a number from 0 to 100.\n" RESET);
-        return prompt_edit_mark(out, current);
     }
+    trim_newline(userBuffer);
 
-    // Accept valid integer/float mark
-    *out = (float)mv;
+    //Convert string input to number
+    char *endPtr = NULL;
+    double markValue = strtod(userBuffer, &endPtr);
+
+    //Validate input:
+    //Check endPtr != '\0' means non-numeric, endPtr == userBuffer means no conversion
+    //Ensures marks are between 0 and 100
+    if (endPtr == userBuffer || *endPtr != '\0' || markValue < 0.0 || markValue > 100.0) {
+        printf(RED "Invalid mark. Please enter a number from 0 to 100.\n" RESET);
+        return prompt_edit_mark(outputMark, currentMark);
+    }
+    *outputMark = (float)markValue;
+
     return 1;
 }
 
 
 // -----------------------------------------------------------------------------
 // FUNCTION: confirm_delete_by_id
-// PURPOSE : Protects against accidental deletion by requiring user to type
-//           the exact ID to confirm. Typing 'N' cancels the operation.
-// RETURNS : 1 → confirmed (user entered matching ID)
-//           0 → cancelled / mismatch
+// PURPOSE : Protects against accidental deletion by requiring user to type the exact ID to confirm
+//           Typing 'N' cancels the operation
+// RETURNS : 1 -> confirmed (user entered matching ID)
+//           0 -> cancelled / mismatch
 // -----------------------------------------------------------------------------
-static int confirm_delete_by_id(int expected_id)
+static int confirm_delete_by_id(int expectedId)
 {
-    char buf[64];
+    printf("Type the ID " BOLD "%d" RESET " to confirm delete (or 'N' to cancel): ", expectedId);
 
-    // Display prompt:
-    // Example:
-    // Type the ID 1003 to confirm delete (or 'N' to cancel):
-    printf("Type the ID " BOLD "%d" RESET
-           " to confirm delete (or 'N' to cancel): ",
-           expected_id);
-
-    // Read user input
-    if (!fgets(buf, sizeof(buf), stdin))
+    char userBuffer[64];
+    if (!fgets(userBuffer, sizeof(userBuffer), stdin)) //check if userbuffer is null
+    {
         return 0;
+    }
+    trim_newline(userBuffer);
 
-    trim_newline(buf);
-
-    // If user entered just 'N' or 'n', abort delete
-    if (buf[0] && (buf[0] == 'n' || buf[0] == 'N') && buf[1] == '\0')
+    //Condition for cancelling operation
+    if (userBuffer[0] && (userBuffer[0] == 'n' || userBuffer[0] == 'N') && userBuffer[1] == '\0')
+    {
         return 0;
+    }
 
-    // Try converting input to integer
-    char *endp = NULL;
-    long v = strtol(buf, &endp, 10);
+    //Convert string input to number
+    char *endPtr = NULL;
+    long inputID = strtol(userBuffer, &endPtr, 10);
 
-    // Validation: must be a clean integer (no leftover chars)
-    if (endp == buf || *endp != '\0')
+    //Check endPtr != '\0' means non-numeric, endPtr == userBuffer means no conversion
+    if (endPtr == userBuffer || *endPtr != '\0')
+    {
         return 0;
+    }
 
-    // Only return TRUE if the number matches expected ID
-    return (v == expected_id);
+    //Returns TRUE if the number matches expected ID
+    return (inputID == expectedId);
 }
 
 
@@ -397,137 +381,106 @@ static int confirm_delete_by_id(int expected_id)
 
 // -----------------------------------------------------------------------------
 // FUNCTION: open_db
-// PURPOSE : Opens a .txt database file, reads student records, parses them,
-//           and loads them into the dynamic array.
+// PURPOSE : Opens a .txt database file, reads student records, parses them, and loads them into Student array.
 //
 // DETAILS :
-//   - Validates that the file exists.
-//   - Checks that the file extension is ".txt".
-//   - Skips the metadata/header (first 5 lines).
-//   - For each remaining line, calls parse_line() to extract data.
-//   - Automatically expands the array using ensure_cap().
-//   - Logs the action in the audit log.
+//   - Validates that the file exists and ends with ".txt"
+//   - Skips the metadata/header (first 5 lines)
+//   - Calls parse_line() to extract data for each line
+//   - Automatically expands the array using ensure_cap()
+//   - Logs the action in the audit log
 //
-// RETURNS : 1 → success
-//           0 → failure (file missing or wrong format)
+// RETURNS : 1 -> success
+//           0 -> failure (file missing or wrong format)
 // -----------------------------------------------------------------------------
 int open_db(const char *filePath) {
-
     FILE *filePtr;
+    filePtr = fopen(filePath, "r"); //open file in read mode
 
-    // Attempt to open the file in read mode.
-    filePtr = fopen(filePath, "r");
-
-    // If fopen() returns NULL, file was not found or cannot be opened.
-    if (filePtr == NULL) {
+    if (filePtr == NULL) { //file not found or cannot be opened.
         printf("CMS: Failed to open \"%s\" file not found!\n", filePath);
         return 0;
     }
 
-    // -------------------------------------------------------------------------
-    // Validate file extension (must end with .txt)
-    // -------------------------------------------------------------------------
     int filePathLength = strlen(filePath);
-
-    // Minimum length = 5 (e.g., a.txt)
-    if (filePathLength <= 4) {
+    if (filePathLength <= 4) { //Check for non *.txt
         printf("CMS: File is not a txt file.\n");
         return 0;
     }
-
-    // Check last 4 characters
-    if (!(filePath[filePathLength - 1] == 't' &&
+    if (!(filePath[filePathLength - 1] == 't' && //check extension
           filePath[filePathLength - 2] == 'x' &&
           filePath[filePathLength - 3] == 't' &&
-          filePath[filePathLength - 4] == '.')) {
-
+          filePath[filePathLength - 4] == '.')) 
+    {
         printf("CMS: File is not a txt file.\n");
         return 0;
     }
 
-    // -------------------------------------------------------------------------
-    // Begin reading file contents
-    // -------------------------------------------------------------------------
-    arr_size = 0;                // Reset number of records before loading
-    char currentFileLine[512];   // Buffer for reading each line
-    int lineNumber = 0;          // Track line index (to skip headers)
+    arr_size = 0; //Reset Student array length
+    char currentFileLine[512];
+    int lineNumber = 0; //Line number tracker, to skip headers
 
     while (fgets(currentFileLine, sizeof(currentFileLine), filePtr)) {
-
-        lineNumber++;  // Count every line read
-
-        // Skip first 5 lines (metadata + table header)
-        if (lineNumber <= 5) {
+        lineNumber++; //Line number will increment based on number of iteration
+        if (lineNumber <= 5) { //Skip metadata and table header
             continue;
         }
 
-        // Parse the student record
-        Student s;
-        if (parse_line(currentFileLine, &s)) {
-
-            // Ensure enough capacity in the array
+        //Parse student
+        Student currentStudent;
+        if (parse_line(currentFileLine, &currentStudent)) {
             ensure_cap();
 
-            // Store the parsed student struct
-            arr[arr_size++] = s;
+            //Store into student array
+            arr[arr_size] = currentStudent;
+            arr_size++;
         }
     }
 
-    // Close file after reading all lines
     fclose(filePtr);
 
-    // Display message on screen
     printf("CMS: \"%s\" opened (%zu records)\n", filePath, arr_size);
 
-    // Write to audit log
-    audit_log("OPEN %s (%zu records)", filePath, arr_size);
+    audit_log("OPEN %s (%zu records)", filePath, arr_size); //Audit log
 
-    // Reset UNDO history since dataset changed
-    last_op.op = OP_NONE;
+    last_op.op = OP_NONE; //Reset Undo history
 
     return 1;
 }
 
-
 // -----------------------------------------------------------------------------
 // FUNCTION: show_all
-// PURPOSE : Prints a nicely formatted table of all student records currently
-//           stored in memory.
+// PURPOSE : Prints a nicely formatted table of all student records currently stored in memory.
 // -----------------------------------------------------------------------------
 void show_all(void) {
-
-    // Guard: No data loaded
-    if (arr_size == 0) {
+    if (arr_size == 0) { //No records in memory
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
 
-    // Print table header with formatting and color
+    //Print table header with formatting and colour
     printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET,
            "ID", "Name", "Programme", "Mark");
 
-    // Loop through each record and print it
+    //Loop through each record and print
     for (size_t i = 0; i < arr_size; i++) {
-
-        // Decide color based on mark
-        const char *color = RESET;
+        //Decide colour based on marks
+        const char *colour = RESET;
         if (arr[i].mark >= 80)
-            color = GREEN;
+            colour = GREEN;
         else if (arr[i].mark < 50)
-            color = RED;
+            colour = RED;
         else
-            color = YELLOW;
+            colour = YELLOW;
 
-        // Print row in formatted columns
+        //Print row in formatted columns
         printf("%-10d %-20s %-30s %s%-6.1f%s\n",
                arr[i].id,
                arr[i].name,
                arr[i].programme,
-               color, arr[i].mark, RESET);
+               colour, arr[i].mark, RESET);
     }
 }
-
-
 
 // -----------------------------------------------------------------------------
 // COMPARATOR: idAsc
@@ -551,7 +504,7 @@ int idDesc(const void* a, const void* b) {
 
 // -----------------------------------------------------------------------------
 // COMPARATOR: markAsc
-// PURPOSE   : Sort by mark from lowest → highest.
+// PURPOSE   : Sort by mark from lowest -> highest.
 // -----------------------------------------------------------------------------
 int markAsc(const void* a, const void* b) {
     float mark_a = ((Student*)a)->mark;
@@ -564,7 +517,7 @@ int markAsc(const void* a, const void* b) {
 
 // -----------------------------------------------------------------------------
 // COMPARATOR: markDesc
-// PURPOSE   : Sort by mark from highest → lowest.
+// PURPOSE   : Sort by mark from highest -> lowest.
 // -----------------------------------------------------------------------------
 int markDesc(const void* a, const void* b) {
     float mark_a = ((Student*)a)->mark;
@@ -575,19 +528,16 @@ int markDesc(const void* a, const void* b) {
     return 0;
 }
 
-
 // -----------------------------------------------------------------------------
 // FUNCTION: showSorted
 // PURPOSE : Sorts the array based on user command then reprints all records.
-// INPUTS  : field = "ID" or "MARK"
+// ACCEPTS : field = "ID" or "MARK"
 //           order = "ASC" or "DESC"
 // -----------------------------------------------------------------------------
 void showSorted(const char* field, const char* order) {
-
-    // Determine field to sort by
+    //Determine field to sort by
     if (strcmp(field, "ID") == 0) {
-
-        // Determine sort direction
+        //Determine sort direction
         if (strcmp(order, "ASC") == 0)
             qsort(arr, arr_size, sizeof(Student), idAsc);
 
@@ -595,7 +545,6 @@ void showSorted(const char* field, const char* order) {
             qsort(arr, arr_size, sizeof(Student), idDesc);
     }
     else if (strcmp(field, "MARK") == 0) {
-
         if (strcmp(order, "ASC") == 0)
             qsort(arr, arr_size, sizeof(Student), markAsc);
 
@@ -603,98 +552,88 @@ void showSorted(const char* field, const char* order) {
             qsort(arr, arr_size, sizeof(Student), markDesc);
     }
 
-    // After sorting, print the updated table
+    //After sorting, print the updated table
     show_all();
 }
 
-
-
 // -----------------------------------------------------------------------------
 // FUNCTION: insert_record
-// PURPOSE : Inserts a new student struct into the dynamic array.
-// BEHAVIOR:
+// PURPOSE : Inserts a new student object into the dynamic array.
+// BEHAVIOUR:
 //   - Prevents duplicate IDs
 //   - Expands array if needed
 //   - Logs the insertion
 //   - Stores undo information
 // -----------------------------------------------------------------------------
-void insert_record(Student s) {
-
-    // Cannot insert until OPEN loads data
-    if (arr_size == 0) {
+void insert_record(Student studentObject) {
+    if (arr_size == 0) { //No records in memory
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
 
-    // Reject duplicate IDs
-    if (find_index_by_id(s.id) != -1) {
+    //Reject duplicate IDs
+    if (find_index_by_id(studentObject.id) != -1) {
         printf("CMS: ID already exists!\n");
         return;
     }
 
-    // Make sure array has enough space
+    //Ensure array has enough space before insert
     ensure_cap();
 
-    // Append new student to the array
-    arr[arr_size++] = s;
+    //Insert new student to the array
+    arr[arr_size] = studentObject;
+    arr_size++;
 
     printf("CMS: Record inserted successfully!\n");
 
-    // Log the action
-    audit_log("INSERT %d %s %s %.1f",
-              s.id, s.name, s.programme, s.mark);
+    audit_log("INSERT %d %s %s %.1f", studentObject.id, studentObject.name, studentObject.programme, studentObject.mark); //Audit Log
 
-    // Prepare for undo
+    //Prepare for undo
     last_op.op = OP_INSERT;
-    last_op.after = s;
+    last_op.after = studentObject;
 }
-
 
 // -----------------------------------------------------------------------------
 // FUNCTION: query
 // PURPOSE : Looks up a student by ID and prints their record.
 // -----------------------------------------------------------------------------
-void query(int id) {
-
-    if (arr_size == 0) {
+void query(int studentId) {
+    if (arr_size == 0) { //No records in memory
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
 
-    int i = find_index_by_id(id);
+    int studentIndex = find_index_by_id(studentId);
 
-    // If student ID not found
-    if (i < 0) {
-        printf("CMS: The record with ID %d does not exist.\n", id);
+    if (studentIndex < 0) { //If student ID not found (-1), exit
+        printf("CMS: The record with ID %d does not exist.\n", studentId);
         return;
     }
 
-    // Print header
-    printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET,
-           "ID", "Name", "Programme", "Mark");
+    //Print Header
+    printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET, "ID", "Name", "Programme", "Mark");
 
-    // Reuse same color logic as show_all()
-    const char *color = RESET;
-    if (arr[i].mark >= 80)
-        color = GREEN;
-    else if (arr[i].mark < 50)
-        color = RED;
+    //Decide colour based on marks
+    const char *colour = RESET;
+    if (arr[studentIndex].mark >= 80)
+        colour = GREEN;
+    else if (arr[studentIndex].mark < 50)
+        colour = RED;
     else
-        color = YELLOW;
+        colour = YELLOW;
 
-    // Print the student record
+    //Print the student record
     printf("%-10d %-20s %-30s %s%-6.1f%s\n",
-           arr[i].id,
-           arr[i].name,
-           arr[i].programme,
-           color, arr[i].mark, RESET);
+           arr[studentIndex].id,
+           arr[studentIndex].name,
+           arr[studentIndex].programme,
+           colour, arr[studentIndex].mark, RESET);
 }
-
 
 // -----------------------------------------------------------------------------
 // FUNCTION: update
 // PURPOSE : Modifies an existing student record.
-// PROCESS :
+// DETAILS :
 //   1. Look up student by ID
 //   2. Show current data
 //   3. Ask user which fields to edit
@@ -702,30 +641,28 @@ void query(int id) {
 //   5. Ask for confirmation
 //   6. Save changes and update undo log
 // -----------------------------------------------------------------------------
-void update(int id) {
-
-    if (arr_size == 0) {
+void update(int studentID) {
+    if (arr_size == 0) { //No records in memory
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
 
-    int idx = find_index_by_id(id);
-    if (idx < 0) {
-        printf("CMS: The record with ID %d does not exist.\n", id);
+    int studentIndex = find_index_by_id(studentID);
+    if (studentIndex < 0) {
+        printf("CMS: The record with ID %d does not exist.\n", studentID);
         return;
     }
 
-    // Save copies of BEFORE and AFTER states for diff & undo
-    Student before = arr[idx];
+    //Save copies of BEFORE and AFTER states for diff & undo
+    Student before = arr[studentIndex];
     Student after  = before;
 
-    // Display current record
-    printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET,
-           "ID", "Name", "Programme", "Mark");
+    //Display current record
+    printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET, "ID", "Name", "Programme", "Mark");
 
     print_student_record(&before);
 
-    // Allow user to edit fields (ENTER == keep old value)
+    //Allow user to edit fields (ENTER == keep old value)
     int changed = 0;
 
     changed |= prompt_edit_str("Name",
@@ -739,7 +676,7 @@ void update(int id) {
     changed |= prompt_edit_mark(&after.mark,
                                 before.mark);
 
-    // If no field changed, abort update
+    //If no field changed, abort update
     if (!changed) {
         printf(YELLOW "No changes detected. Update cancelled.\n" RESET);
         return;
@@ -759,51 +696,47 @@ void update(int id) {
     char bmark[32], amark[32];
     snprintf(bmark, sizeof(bmark), "%.1f", before.mark);
     snprintf(amark, sizeof(amark), "%.1f", after.mark);
-
     print_diff_row("Mark", bmark, amark);
 
-    // Confirm if user wants to apply changes
+    //Confirm if user wants to apply changes
     char confirm[32];
     printf("\nConfirm update (Y/N)? ");
-
-    if (!fgets(confirm, sizeof(confirm), stdin)) {
+    if (!fgets(confirm, sizeof(confirm), stdin)) { //Check if NULL
         printf("Cancelled.\n");
         return;
     }
-
-    // Convert to lowercase to check against 'y'
-    for (char *p = confirm; *p; ++p)
-        *p = (char)tolower((unsigned char)*p);
-
+    //Convert lowercase and check 'y'
+    for (char *confirmPtr = confirm; *confirmPtr; ++confirmPtr)
+    {
+        *confirmPtr = (char)tolower((unsigned char)*confirmPtr);
+    }
     if (confirm[0] != 'y') {
         printf("Cancelled.\n");
         return;
     }
 
-    // Apply changes
-    arr[idx] = after;
+    //Apply changes
+    arr[studentIndex] = after;
 
     printf(GREEN "CMS: Record updated.\n" RESET);
 
-    // Log update details
-    audit_log("UPDATE %d | \"%s\" -> \"%s\" | \"%s\" -> \"%s\" | %.1f -> %.1f",
-              id,
-              before.name, after.name,
-              before.programme, after.programme,
-              before.mark, after.mark);
+    //Log update details
+    audit_log("UPDATE %d | \"%s\" -> \"%s\" | \"%s\" -> \"%s\" | %.1f -> %.1f", 
+        studentID,
+        before.name, after.name,
+        before.programme, after.programme,
+        before.mark, after.mark);
 
-    // Prepare undo
+    //Prepare for undo
     last_op.op = OP_UPDATE;
     last_op.before = before;
     last_op.after  = after;
 }
 
-
-
 // -----------------------------------------------------------------------------
 // FUNCTION: delete
 // PURPOSE : Removes a student record from the system.
-// PROCESS :
+// DETAILS :
 //   1. Look up student by ID
 //   2. Display record about to be deleted
 //   3. Require user to type ID to confirm
@@ -811,113 +744,93 @@ void update(int id) {
 //   5. Write to audit log
 //   6. Save undo info
 // -----------------------------------------------------------------------------
-void delete(int id) {
-
-    if (arr_size == 0) {
+void delete(int studentID) {
+    if (arr_size == 0) { //No records in memory
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
 
-    int i = find_index_by_id(id);
-    if (i < 0) {
-        printf("CMS: The record with ID %d does not exist.\n", id);
+    int studentIndex = find_index_by_id(studentID);
+    if (studentIndex < 0) {
+        printf("CMS: The record with ID %d does not exist.\n", studentID);
         return;
     }
 
-    // Backup the record so UNDO can restore it
-    Student before = arr[i];
+    //Backup the record so UNDO can restore it
+    Student before = arr[studentIndex];
 
-    // Show record before deletion
+    //Show record before deletion
     printf("\n" BOLD "About to delete this record:" RESET "\n");
-    printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET,
-           "ID", "Name", "Programme", "Mark");
+    printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET, "ID", "Name", "Programme", "Mark");
 
     print_student_record(&before);
 
-    // Require exact ID confirmation
+    //Require exact ID confirmation
     if (!confirm_delete_by_id(before.id)) {
         printf(YELLOW "Cancelled.\n" RESET);
         return;
     }
 
-    // Delete by overwriting this index with last record (O(1))
-    arr[i] = arr[arr_size - 1];
+    //Delete by overwriting this index with last record (O(1))
+    arr[studentIndex] = arr[arr_size - 1];
     arr_size--;
 
     printf(GREEN "CMS: Record deleted.\n" RESET);
 
     audit_log("DELETE %d | \"%s\" | \"%s\" | %.1f",
-              before.id, before.name,
-              before.programme, before.mark);
+        before.id, before.name,
+        before.programme, before.mark);
 
-    // Prepare undo record
+    //Prepare undo record
     last_op.op = OP_DELETE;
     last_op.before = before;
 }
 
-
-
 // -----------------------------------------------------------------------------
 // FUNCTION: save
-// PURPOSE : Writes the current student array into a .txt file in formatted
-//           table form, along with a header containing metadata.
-// PROCESS :
+// PURPOSE : Writes the current student array into a .txt file in formatted table form, with metadata.
+// DETAILS :
 //   - Opens output file in write mode
-//   - Writes database name + author list
+//   - Writes database name + author list + table name
 //   - Writes table header
-//   - Dumps every student record in formatted columns
-//   - Logs the event
+//   - Writes every student record in formatted columns
+//   - Write to audit log
 // -----------------------------------------------------------------------------
 void save() {
-
-    // Guard: Can't save if no records loaded
-    if (arr_size == 0) {
+    if (arr_size == 0) { //No records in memory
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
 
-    // Open file for writing (overwrite existing)
-    FILE *f = fopen(FILENAME, "w");
-
-    // If cannot open file → fail soft
-    if (!f) {
+    FILE *filePtr = fopen(FILENAME, "w"); //will overwrite existing *.txt file
+    if (filePtr == NULL) {
         printf("Save failed.\n");
         return;
     }
 
-    // -----------------------------------------------------
-    // 1. Write metadata header
-    // -----------------------------------------------------
-    fprintf(f, "Database Name: P9_3-CMS\n");
-    fprintf(f, "Authors: Ryan, Glenn, Min Han, Jordan, Ben\n");
-    fprintf(f, "Table Name: StudentRecords\n\n");
+    //Write Metadata Headers
+    fprintf(filePtr, "Database Name: P9_3-CMS\n");
+    fprintf(filePtr, "Authors: Ryan, Glenn, Min Han, Jordan, Ben\n");
+    fprintf(filePtr, "Table Name: StudentRecords\n\n");
 
-    // -----------------------------------------------------
-    // 2. Write column headers
-    // -----------------------------------------------------
-    fprintf(f, "%-10s %-15s %-25s %-6s\n",
-            "ID", "Name", "Programme", "Mark");
+    //Write Column Header
+    fprintf(filePtr, "%-10s %-15s %-25s %-6s\n", "ID", "Name", "Programme", "Mark");
 
-    // -----------------------------------------------------
-    // 3. Write each student to file
-    // -----------------------------------------------------
+    //Iterate student array and write to each row
     for (size_t i = 0; i < arr_size; i++) {
-        fprintf(f, "%-10d %-15s %-25s %-6.1f\n",
-                arr[i].id,
-                arr[i].name,
-                arr[i].programme,
-                arr[i].mark);
+        fprintf(filePtr, "%-10d %-15s %-25s %-6.1f\n",
+            arr[i].id,
+            arr[i].name,
+            arr[i].programme,
+            arr[i].mark);
     }
 
-    // Close file
-    fclose(f);
+    fclose(filePtr);
 
     printf("CMS: Saved to \"%s\".\n", FILENAME);
 
-    // Write to log
-    audit_log("SAVE %s", FILENAME);
+    audit_log("SAVE %s", FILENAME); //Audit Logging Purposes
 }
-
 
 // -----------------------------------------------------------------------------
 // FUNCTION: summary
@@ -926,27 +839,24 @@ void save() {
 //           - average mark
 //           - highest mark + student name
 //           - lowest mark + student name
-//
-// METHOD  :
+// DETAILS :
 //   - Iterate through all records once
 //   - Track running total, max, min, and indices
 // -----------------------------------------------------------------------------
 void summary() {
-
-    // If there are no students loaded, nothing to summarize
-    if (arr_size == 0) {
+    if (arr_size == 0) { //No records in memory -> cannot summarise
         printf("No students available.\n");
         return;
     }
 
-    int total = arr_size;   // Total number of students
-    double sum = 0.0;       // Running total of all marks
+    int total = arr_size; //Total number of students
+    double sum = 0.0; //Running total of all marks
 
-    // Initialize highest/lowest values using first student's mark
+    //Initialise highest/lowest values using first student's mark
     double highest = arr[0].mark;
     double lowest  = arr[0].mark;
-    size_t hi_index = 0;     // Index of student with highest mark
-    size_t lo_index = 0;     // Index of student with lowest mark
+    size_t hi_index = 0; //Index of student with highest mark
+    size_t lo_index = 0; //Index of student with lowest mark
 
     // -----------------------------------------------------
     // Scan through all records to compute statistics
@@ -954,22 +864,22 @@ void summary() {
     for (size_t i = 0; i < arr_size; i++) {
 
         double m = arr[i].mark;
-        sum += m;     // Add mark to running sum
+        sum += m;     //Add mark to running sum
 
-        // Track highest mark
+        //Track highest mark
         if (m > highest) {
             highest = m;
             hi_index = i;
         }
 
-        // Track lowest mark
+        //Track lowest mark
         if (m < lowest) {
             lowest = m;
             lo_index = i;
         }
     }
 
-    double average = sum / total;   // Compute class average
+    double average = sum / total;   //Class average
 
     // -----------------------------------------------------
     // Print results in colored, formatted output
@@ -990,11 +900,10 @@ void summary() {
     printf(CYAN "===========================\n" RESET);
 }
 
-
 // -----------------------------------------------------------------------------
 // FUNCTION: undo
 // PURPOSE : Reverts the last modifying operation.
-// SUPPORTED:
+// SUPPORTS:
 //   - Undo INSERT: remove the last inserted student
 //   - Undo DELETE: reinsert the deleted student
 //   - Undo UPDATE: restore record to previous state
@@ -1005,80 +914,75 @@ void summary() {
 //     and before/after student snapshots
 // -----------------------------------------------------------------------------
 void undo() {
-
-    // If no operation to undo
+    //If no operation to undo
     if (last_op.op == OP_NONE) {
         printf(YELLOW "CMS: Nothing to undo.\n" RESET);
         return;
     }
 
-    // Visual header
+    //Visual header
     printf("\n" BOLD "===== Performing UNDO operation =====" RESET "\n");
 
-    // Print table headers (same style as display)
-    printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET,
-           "ID", "Name", "Programme", "Mark");
+    //Print table headers
+    printf(BOLD CYAN "%-10s %-20s %-30s %-6s\n" RESET, "ID", "Name", "Programme", "Mark");
 
     printf(CYAN "------------------------------------------------------------------\n" RESET);
 
     // -------------------------------------------------------------------------
-    // CASE 1: Undo INSERT → Remove the record that was inserted
+    // CASE 1: Undo INSERT -> Remove the record that was inserted
     // -------------------------------------------------------------------------
     if (last_op.op == OP_INSERT) {
 
-        // Locate the inserted record using its ID
+        //Locate the inserted record using its ID
         int i = find_index_by_id(last_op.after.id);
 
-        // Only undo if the record is still present
+        //Only undo if the record is still present
         if (i >= 0 && arr_size > 0) {
 
             printf(YELLOW "Removed record:\n" RESET);
             print_student_record(&arr[i]);
 
-            // Delete using swap-delete for O(1) removal
+            //Delete using swap-delete for O(1) removal
             arr[i] = arr[arr_size - 1];
             arr_size--;
 
-            printf(GREEN "CMS: Undo INSERT successful (Record ID %d removed).\n" RESET,
-                   last_op.after.id);
+            printf(GREEN "CMS: Undo INSERT successful (Record ID %d removed).\n" RESET, last_op.after.id);
 
             audit_log("UNDO INSERT (ID %d removed)", last_op.after.id);
         }
         else {
-            printf(RED "CMS Error: Undo failed. Record ID %d not found.\n" RESET,
-                   last_op.after.id);
+            printf(RED "CMS Error: Undo failed. Record ID %d not found.\n" RESET, last_op.after.id);
 
             audit_log("UNDO INSERT failed (ID %d not found)", last_op.after.id);
         }
     }
 
     // -------------------------------------------------------------------------
-    // CASE 2: Undo DELETE → Re-insert the previously deleted record
+    // CASE 2: Undo DELETE -> Re-insert the previously deleted record
     // -------------------------------------------------------------------------
     else if (last_op.op == OP_DELETE) {
-
-        // Ensure enough space in array
+        //Ensure enough memory in array before inserting deleted student
         ensure_cap();
 
-        // Reinsert deleted student
-        arr[arr_size++] = last_op.before;
+        //Reinsert deleted student
+        arr[arr_size] = last_op.before;
+        arr_size++;
 
         printf(GREEN "Re-inserted record:\n" RESET);
         print_student_record(&last_op.before);
 
-        printf(GREEN "CMS: Undo DELETE successful (Record ID %d re-inserted).\n" RESET,
-               last_op.before.id);
+        printf(GREEN "CMS: Undo DELETE successful (Record ID %d re-inserted).\n" RESET, last_op.before.id);
 
         audit_log("UNDO DELETE (ID %d re-inserted)", last_op.before.id);
     }
 
     // -------------------------------------------------------------------------
-    // CASE 3: Undo UPDATE → Restore the BEFORE state
+    // CASE 3: Undo UPDATE -> Restore the BEFORE state
     // -------------------------------------------------------------------------
     else if (last_op.op == OP_UPDATE) {
 
-        // Find the record using ID from the "after" snapshot
-        // because the user might have edited the name/programme
+        //Find the record using ID from the "after" snapshot
+        //because the user might have edited the name/programme
         int i = find_index_by_id(last_op.after.id);
 
         if (i >= 0) {
@@ -1086,24 +990,22 @@ void undo() {
             printf(YELLOW "Restoring record from state before update:\n" RESET);
             print_student_record(&last_op.before);
 
-            // Restore original version
+            //Restore original version
             arr[i] = last_op.before;
 
-            printf(GREEN "CMS: Undo UPDATE successful (Record ID %d reverted).\n" RESET,
-                   last_op.before.id);
+            printf(GREEN "CMS: Undo UPDATE successful (Record ID %d reverted).\n" RESET, last_op.before.id);
 
             audit_log("UNDO UPDATE (ID %d restored)", last_op.before.id);
         }
         else {
 
-            printf(RED "CMS Error: Undo failed. Record ID %d not found.\n" RESET,
-                   last_op.after.id);
+            printf(RED "CMS Error: Undo failed. Record ID %d not found.\n" RESET, last_op.after.id);
 
             audit_log("UNDO UPDATE failed (ID %d not found)", last_op.after.id);
         }
     }
 
-    // Clear undo history so cannot undo twice
+    //Clear undo history so cannot undo twice
     printf(BOLD "====================================" RESET "\n");
 
     last_op.op = OP_NONE;
@@ -1116,36 +1018,29 @@ void undo() {
 
 // -----------------------------------------------------------------------------
 // FUNCTION: main
-// PURPOSE : This is the main loop that makes your CMS interactive.
-//           It waits for user input, identifies the command,  
-//           and calls the appropriate function.
-//
-// FEATURES:
+// PURPOSE : Interactive CMS main loop. Waits for user input, identifies the command, and calls the appropriate function.
+// DETAILS :
 //   - Reads and parses commands like OPEN, SHOW, INSERT, DELETE, UPDATE, etc.
 //   - Supports multi-word commands using sscanf()
 //   - Uses strcasecmp() for case-insensitive matching
 //   - Runs until user types EXIT
 // -----------------------------------------------------------------------------
 int main(void) {
+    // -------------------------------------------------------------------------
+    // Variable Buffers for reading user commands and breaking them into components
+    // -------------------------------------------------------------------------
+    char userBuffer[256]; //Full line typed by user
+    char command[64];     //First word of command
+    char arg1[64];        //Optional argument 1
+    char arg2[64];        //Optional argument 2
+    char arg3[64];        //Optional argument 3
 
-    // -------------------------------------------------------------------------
-    // Buffers for reading user commands and breaking them into components
-    // -------------------------------------------------------------------------
-    char userBuffer[256];   // Full line typed by user
-    char command[64];       // First word of command
-    char arg1[64];          // Optional argument 1
-    char arg2[64];          // Optional argument 2
-    char arg3[64];          // Optional argument 3
-
-    // -------------------------------------------------------------------------
-    // Print current date/time when the system starts
-    // -------------------------------------------------------------------------
-    time_t now = time(NULL);        // Get current time
-    struct tm *t = localtime(&now); // Convert to human readable format
-
+    //For printing current time
+    time_t now = time(NULL); //Get current time
+    struct tm *t = localtime(&now); //Convert human readable format
     char datetime[64];
     strftime(datetime, sizeof(datetime),
-             "%A, %d %B %Y, %I:%M %p", t);
+            "%A, %d %B %Y, %I:%M %p", t);
 
     printf(RED"============================================== DECLARATION ==============================================\n" RESET);
     printf("SIT's policy on copying does not allow the students to copy source code as well as assessment solutions from another person AI or other places. "
@@ -1171,99 +1066,93 @@ int main(void) {
     printf("Date: 24th November 2025\n");
     printf(RED"=========================================================================================================\n\n"RESET);
 
-    printf("Hello there! P9_3 Classroom Management System [CMS] Ready. Today is %s.\n",
-           datetime);
+    printf("Hello there! P9_3 Classroom Management System [CMS] Ready. Today is %s.\n", datetime);
     printf("Type HELP to display available commands.\n");
 
     // -------------------------------------------------------------------------
     // MAIN COMMAND LOOP
-    // This loop runs forever until the user types "EXIT".
     // -------------------------------------------------------------------------
     while (1) {
-
-        // Display the prompt "P9_3>"
+        //Will always display the prompt "P9_3>"
         printf("P9_3> ");
 
-        // Read an entire line from the user
-        if (!fgets(userBuffer, sizeof(userBuffer), stdin))
-            break;  // If input fails (EOF), exit loop
+        if (!fgets(userBuffer, sizeof(userBuffer), stdin)) //User Input
+        {
+            break; //If input fails (EOF), exit loop
+        }
+        userBuffer[strcspn(userBuffer, "\n")] = '\0'; //Remove trailing newline
 
-        // Remove trailing newline (so "SHOW\n" becomes "SHOW")
-        userBuffer[strcspn(userBuffer, "\n")] = 0;
-
-        // Reset command buffers before parsing
+        //Reset command buffers before parsing
         command[0] = arg1[0] = arg2[0] = arg3[0] = '\0';
 
         // ---------------------------------------------------------------------
         // Parse up to 4 tokens (command + 3 arguments)
-        // Example:
-        //    SHOW ALL SORT BY MARK DESC
+        // Example: SHOW ALL SORT BY MARK DESC
         // Will map to:
         //    command = "SHOW"
         //    arg1    = "ALL"
         //    arg2    = "SORT"
         //    arg3    = "BY"
         // ---------------------------------------------------------------------
-        int n = sscanf(userBuffer, "%63s %63s %63s %63s",
-                       command, arg1, arg2, arg3);
+        int commandArgCount = sscanf(userBuffer, "%63s %63s %63s %63s", command, arg1, arg2, arg3);
 
-        // If user simply pressed ENTER → restart loop
-        if (n < 1) continue;
+        //Pressed ENTER -> restart loop
+        if (commandArgCount < 1) continue;
 
         // ---------------------------------------------------------------------
-        // BEGIN COMMAND DISPATCHER
+        // COMMAND DISPATCHER
         // ---------------------------------------------------------------------
 
-        // ============================= OPEN =============================
+        //============================= OPEN =============================
         if (strcasecmp(command, "OPEN") == 0) {
-
-            if (n >= 2)
-                open_db(arg1);    // OPEN <filename>
-            else
+            if (commandArgCount >= 2) { //OPEN <filename>
+                open_db(arg1);
+            }
+            else {
                 printf("Usage: OPEN filename\n");
+            }
         }
 
-        // ============================= SHOW =============================
+        //============================= SHOW =============================
         else if (strcasecmp(command, "SHOW") == 0) {
-
-            // Case 1: SHOW ALL
+            //Case 1: SHOW ALL
             if (strcasecmp(arg1, "ALL") == 0) {
 
-                // Case 1a: SHOW ALL SORT BY <field> <order>
-                if (strcasecmp(arg2, "SORT") == 0 &&
-                    strcasecmp(arg3, "BY") == 0) {
-
+                //Case 1a: SHOW ALL SORT BY <field> <order>
+                if (strcasecmp(arg2, "SORT") == 0 && strcasecmp(arg3, "BY") == 0) {
+                    
                     char field[16] = "\0";
                     char order[16] = "\0";
 
-                    // Extract field + order from the rest of the text input
-                    int numOfArgs =
-                        sscanf(userBuffer, "%*s %*s %*s %*s %15s %15s",
-                               field, order);
+                    //Extract field + order from the rest of the text input
+                    int numOfArgs = sscanf(userBuffer, "%*s %*s %*s %*s %15s %15s", field, order);
 
                     if (numOfArgs >= 1) {
-
-                        // Convert field and order into uppercase
-                        for (int i = 0; field[i]; i++)
+                        //Convert field and order into uppercase
+                        for (int i = 0; field[i]; i++) {
                             field[i] = toupper(field[i]);
+                        }
 
-                        for (int j = 0; order[j]; j++)
+                        for (int j = 0; order[j]; j++) {
                             order[j] = toupper(order[j]);
+                        }
 
-                        // If order provided → use it
-                        if (order[0])
+                        //If order provided -> use it
+                        if (order[0]) {
                             showSorted(field, order);
-                        else
-                            showSorted(field, "ASC");  // default to ASC
+                        }
+                        else {
+                            showSorted(field, "ASC"); //default to ASC
+                        }
                     }
                 }
+                //Case 1b: SHOW ALL
                 else {
-                    // Simple: SHOW ALL
                     show_all();
                 }
             }
 
-            // Case 2: SHOW SUMMARY
+            //Case 2: SHOW SUMMARY
             else if (strcasecmp(arg1, "SUMMARY") == 0) {
                 summary();
             }
@@ -1273,50 +1162,86 @@ int main(void) {
             }
         }
 
-        // ============================= INSERT =============================
+        //============================= INSERT =============================
         else if (strcasecmp(command, "INSERT") == 0) {
 
-            Student s;
-            char buf[256];
+            Student newStudentObject = {0};
+            char userBuffer[256] = {0};
 
-            // Prompt user for new record fields, one-by-one
-
-            // ID
+            //ID
             printf("ID: ");
-            if (!fgets(buf, sizeof(buf), stdin)) continue;
-            s.id = atoi(buf);
+            if (!fgets(userBuffer, sizeof(userBuffer), stdin) || userBuffer[0] == '\n') {
+                printf("CMS Error: ID cannot be empty.\n");
+                continue;
+            }
+            userBuffer[strcspn(userBuffer, "\n")] = '\0'; //Trim newline
+            //Cast ID(string) to int
+            char *endPtr;
+            long studentID = strtol(userBuffer, &endPtr, 10);
+            if (*endPtr != '\0' || studentID <= 0) {
+                printf("CMS Error: ID must be a positive number.\n");
+                continue;
+            }
+            newStudentObject.id = (int)studentID;
 
             // Check if ID already exists
-            if (query_exists(s.id)) {
-                printf("Error: Student with ID %d already exists.\n", s.id);
+            if (query_exists(newStudentObject.id)) {
+                printf("CMS Error: Student with ID %d already exists.\n", newStudentObject.id);
                 continue;
             }
 
-            // Name
+            //Name
             printf("Name: ");
-            fgets(buf, sizeof(buf), stdin);
-            strtok(buf, "\n");
-            strncpy(s.name, buf, MAX_STR - 1);
+            if (!fgets(userBuffer, sizeof(userBuffer), stdin) || userBuffer[0] == '\n') {
+                printf("CMS Error: Name cannot be empty.\n");
+                continue;
+            }
+            userBuffer[strcspn(userBuffer, "\n")] = '\0'; //Trim newline
+            if (strlen(userBuffer) >= MAX_STR) { //Check: Name exceed MAX_STR
+                printf("CMS Error: Name too long. Maximum %d characters.\n", MAX_STR - 1);
+                continue;
+            }
+            strncpy(newStudentObject.name, userBuffer, MAX_STR - 1); //Copy to student object
+            newStudentObject.name[MAX_STR - 1] = '\0';
 
-            // Programme
+            //Programme
             printf("Programme: ");
-            fgets(buf, sizeof(buf), stdin);
-            strtok(buf, "\n");
-            strncpy(s.programme, buf, MAX_STR - 1);
+            if (!fgets(userBuffer, sizeof(userBuffer), stdin) || userBuffer[0] == '\n') {
+                printf("CMS Error: Programme cannot be empty.\n");
+                continue;
+            }
+            userBuffer[strcspn(userBuffer, "\n")] = '\0'; //Trim newline
+            if (strlen(userBuffer) >= MAX_STR) { //Check: Programme exceed MAX_STR
+                printf("CMS Error: Programme name too long. Maximum %d characters.\n", MAX_STR - 1);
+                continue;
+            }
+            strncpy(newStudentObject.programme, userBuffer, MAX_STR - 1); //Copy to student object
+            newStudentObject.programme[MAX_STR - 1] = '\0';
 
-            // Mark
+            //Mark
             printf("Mark: ");
-            fgets(buf, sizeof(buf), stdin);
-            s.mark = atof(buf);
+            if (!fgets(userBuffer, sizeof(userBuffer), stdin)) {
+                printf("CMS Error: Invalid mark input.\n");
+                continue;
+            }
+            userBuffer[strcspn(userBuffer, "\n")] = '\0'; //Trim newline
+            //Cast Marks(string) to float
+            char *endPtr2;
+            float studentMarks = strtof(userBuffer, &endPtr2);
+            if (*endPtr2 != '\0' || studentMarks < 0.0f || studentMarks > 100.0f) { //Also checks for marks between 0 and 100
+                printf("CMS Error: Mark must be a valid number between 0 and 100.\n");
+                continue;
+            }
+            newStudentObject.mark = studentMarks;
 
-            // Insert record into array
-            insert_record(s);
+            //Insert record into current student array
+            insert_record(newStudentObject);
         }
 
-        // ============================= QUERY =============================
+        //============================= QUERY =============================
         else if (strcasecmp(command, "QUERY") == 0) {
 
-            if (n >= 2) {
+            if (commandArgCount >= 2) {
                 int id = atoi(arg1);
                 query(id);
             }
@@ -1325,10 +1250,10 @@ int main(void) {
             }
         }
 
-        // ============================= UPDATE =============================
+        //============================= UPDATE =============================
         else if (strcasecmp(command, "UPDATE") == 0) {
 
-            if (n >= 2) {
+            if (commandArgCount >= 2) {
                 int id = atoi(arg1);
                 update(id);
             }
@@ -1337,10 +1262,10 @@ int main(void) {
             }
         }
 
-        // ============================= DELETE =============================
+        //============================= DELETE =============================
         else if (strcasecmp(command, "DELETE") == 0) {
 
-            if (n >= 2) {
+            if (commandArgCount >= 2) {
                 int id = atoi(arg1);
                 delete(id);
             }
@@ -1349,20 +1274,19 @@ int main(void) {
             }
         }
 
-        // ============================= SAVE =============================
+        //============================= SAVE =============================
         else if (strcasecmp(command, "SAVE") == 0) {
 
-            // SAVE takes no additional arguments
             save();
         }
 
-        // ============================= UNDO =============================
+        //============================= UNDO =============================
         else if (strcasecmp(command, "UNDO") == 0) {
 
             undo();
         }
 
-        // ============================= HELP =============================
+        //============================= HELP =============================
         else if (strcasecmp(command, "HELP") == 0) {
 
             printf("Commands:\n"
@@ -1379,23 +1303,20 @@ int main(void) {
                    "EXIT\n");
         }
 
-        // ============================= EXIT =============================
+        //============================= EXIT =============================
         else if (strcasecmp(command, "EXIT") == 0) {
 
-            break;  // leave main loop
+            break; //Leave main loop
         }
 
-        // ============================= UNKNOWN =============================
+        //============================= UNKNOWN =============================
         else {
 
             printf("Unknown command. Type HELP to display available commands.\n");
         }
     }
+    free(arr); //Free student array before exit
 
-    // Free the dynamic array before exiting
-    free(arr);
-
-    // Normal program termination
     return 0;
 }
 
