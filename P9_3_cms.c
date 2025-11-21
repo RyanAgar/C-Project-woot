@@ -619,6 +619,8 @@ static float read_valid_mark(void)
 // RETURNS : 1 -> success
 //           0 -> failure (file missing or wrong format)
 // -----------------------------------------------------------------------------
+
+static int db_opened = 0; // Track if a DB is currently opened
 int open_db(const char *filePath) {
     FILE *filePtr = fopen(filePath, "r"); // open file in read mode
 
@@ -665,6 +667,7 @@ int open_db(const char *filePath) {
 
     last_op.op = OP_NONE; // Reset Undo history
 
+    db_opened = 1; // Mark DB as opened
     return 1;
 }
 
@@ -674,7 +677,7 @@ int open_db(const char *filePath) {
 // PURPOSE : Prints a nicely formatted table of all student records currently stored in memory.
 // -----------------------------------------------------------------------------
 void show_all(void) {
-    if (arr_size == 0) { //No records in memory
+    if (!db_opened) { //No records in memory
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
@@ -787,7 +790,7 @@ void showSorted(const char* field, const char* order) {
 //   - Stores undo information
 // -----------------------------------------------------------------------------
 void insert_record(Student studentObject) {
-    if (arr_size == 0) { //No records in memory
+    if (!db_opened) { //No records in memory
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
@@ -819,7 +822,7 @@ void insert_record(Student studentObject) {
 // PURPOSE : Looks up a student by ID and prints their record.
 // -----------------------------------------------------------------------------
 void query(int studentId) {
-    if (arr_size == 0) { //No records in memory
+    if (!db_opened) { //No records in memory
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
@@ -858,7 +861,7 @@ void query(int studentId) {
 // -----------------------------------------------------------------------------
 void query_prefix(const char *prefix)
 {
-    if (arr_size == 0) {
+    if (!db_opened) {
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
@@ -913,7 +916,7 @@ void query_prefix(const char *prefix)
 //   6. Save changes and update undo log
 // -----------------------------------------------------------------------------
 void update(int studentID) {
-    if (arr_size == 0) { //No records in memory
+    if (!db_opened) { //No records in memory
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
@@ -1016,7 +1019,7 @@ void update(int studentID) {
 //   6. Save undo info
 // -----------------------------------------------------------------------------
 void delete(int studentID) {
-    if (arr_size == 0) { //No records in memory
+    if (!db_opened) { //No records in memory
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
@@ -1068,7 +1071,7 @@ void delete(int studentID) {
 //   - Write to audit log
 // -----------------------------------------------------------------------------
 void save() {
-    if (arr_size == 0) { //No records in memory
+    if (!db_opened) { //No records in memory
         printf("CMS: No records loaded. Use OPEN <filename> first.\n");
         return;
     }
@@ -1115,7 +1118,7 @@ void save() {
 //   - Track running total, max, min, and indices
 // -----------------------------------------------------------------------------
 void summary() {
-    if (arr_size == 0) { //No records in memory -> cannot summarise
+    if (!db_opened) { //No records in memory -> cannot summarise
         printf("No students available.\n");
         return;
     }
@@ -1439,7 +1442,7 @@ int main(void) {
             Student s;
 
             // Guard: make sure some database is loaded
-            if (arr_size == 0) {
+            if (!db_opened) {
                 printf("CMS: No records loaded. Use OPEN <filename> first.\n");
                 continue;
             }
