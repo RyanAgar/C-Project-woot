@@ -822,7 +822,7 @@ void save() {
 
     FILE *filePtr = fopen(FILENAME, "w"); //will overwrite existing *.txt file
     if (filePtr == NULL) {
-        printf("Save failed.\n");
+        printf("CMS Error: Save failed.\n");
         return;
     }
 
